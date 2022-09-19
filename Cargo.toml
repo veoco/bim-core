@@ -1,0 +1,24 @@
+[package]
+name = "bimc"
+version = "0.7.6"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = "0.8"
+bytes = "1"
+serde_json = "1"
+async-stream = "0.3"
+trust-dns-resolver = "0.21"
+log = "0.4"
+env_logger = "0.9"
+clap = { version = "3.2", features = ["derive"] }
+reqwest = { version = "0.11", features = ["json", "stream", "native-tls-vendored"] }
+tokio = { version = "1", features = ["full"] }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
