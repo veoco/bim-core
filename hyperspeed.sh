@@ -27,11 +27,11 @@ check_bimc() {
 }
 
 print_info() {
-    echo "—————————————————————————— HyperSpeed ——————————————————————————————"
+    echo "—————————————————————————— HyperSpeed ———————————————————————————————"
     echo "          bash <(curl -Lso- https://bench.im/hyperspeed)"
     echo "          项目修改自: https://github.com/zq/superspeed"
     echo "     节点更新: 2022/08/20 | 脚本更新: 2022/09/20 | 组件版本: 0.7.7"
-    echo "————————————————————————————————————————————————————————————————————"
+    echo "—————————————————————————————————————————————————————————————————————"
 }
 
 
@@ -63,7 +63,7 @@ speed_test(){
 
     local name=$(./bimc 0 -n "$nodeLocation")
 
-    printf "\r${RED}%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${BLUE}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "..." "↓ " "..." "..." "..."
+    printf "\r${RED}B%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${BLUE}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "..." "↓ " "..." "..." "..."
 
     output=$(./bimc $1 -t $thread)
 
@@ -73,7 +73,7 @@ speed_test(){
     local jitter=$(echo $output | cut -d ',' -f4)
             
     if [[ $(awk -v num1=${upload} -v num2=0.0 'BEGIN{print(num1>num2)?"1":"0"}') -eq 1 ]]; then
-        printf "\r${RED}%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${BLUE}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}\n" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "${upload}" "↓ " "${download}" "${latency}" "${jitter}"
+        printf "\r${RED}B%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${BLUE}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}\n" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "${upload}" "↓ " "${download}" "${latency}" "${jitter}"
     fi
 
 }
@@ -81,8 +81,8 @@ speed_test(){
 run_test() {
     [[ ${selection} == 2 ]] && exit 1
 
-    echo "————————————————————————————————————————————————————————————————————"
-    echo "ID    测速服务器信息       上传/Mbps   下载/Mbps   延迟/ms   抖动/ms"
+    echo "—————————————————————————————————————————————————————————————————————"
+    echo "ID     测速服务器信息       上传/Mbps   下载/Mbps   延迟/ms   抖动/ms"
     start=$(date +%s) 
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 3 ]]; then
@@ -112,7 +112,7 @@ run_test() {
     fi
 
     end=$(date +%s)
-        echo -e "\r————————————————————————————————————————————————————————————————————"
+        echo -e "\r—————————————————————————————————————————————————————————————————————"
         time=$(( $end - $start ))
         if [[ $time -gt 60 ]]; then
             min=$(expr $time / 60)
