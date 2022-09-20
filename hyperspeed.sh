@@ -39,19 +39,25 @@ print_info() {
 get_options() {
     echo -e "  测速类型:    ${GREEN}1.${ENDC} 三网测速    ${GREEN}2.${ENDC} 取消测速    ${GREEN}0.${ENDC} 港澳台日韩"
     echo -e "               ${GREEN}3.${ENDC} 电信节点    ${GREEN}4.${ENDC} 联通节点    ${GREEN}5.${ENDC} 移动节点"
-    while :; do read -p "  请选择测速类型: " selection
-            if [[ ! $selection =~ ^[0-5]$ ]]; then
-                    echo -e "  ${RED}输入错误${ENDC}, 请输入正确的数字!"
-            else
-                    break   
-            fi
+    while :; do read -p "  请选择测速类型(默认: 1): " selection
+        if [[ "$selection" == "" ]]; then
+            selection=1
+            break
+        elif [[ ! $selection =~ ^[0-5]$ ]]; then
+            echo -e "  ${RED}输入错误${ENDC}, 请输入正确的数字!"
+        else
+            break   
+        fi
     done
-    while :; do read -p "  请输入测速线程数量: " thread
-            if [[ ! $thread =~ ^[1-9][0-9]?$ ]]; then
-                    echo -e "  ${RED}输入错误${ENDC}, 请输入正确的数字!"
-            else
-                    break   
-            fi
+    while :; do read -p "  请输入测速线程数量(默认: 1): " thread
+        if [[ "$thread" == "" ]]; then
+            thread=1
+            break
+        elif [[ ! $thread =~ ^[1-9][0-9]?$ ]]; then
+                echo -e "  ${RED}输入错误${ENDC}, 请输入正确的数字!"
+        else
+            break   
+        fi
     done
 }
 
@@ -60,7 +66,6 @@ speed_test(){
     local nodeID=$1
     local nodeLocation=$2
     local nodeISP=$3
-
     local name=$(./bimc 0 -n "$nodeLocation")
 
     printf "\r${YELLOW}B${RED}%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${BLUE}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "..." "↓ " "..." "..." "..."
