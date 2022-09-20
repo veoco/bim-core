@@ -7,8 +7,10 @@ use log::info;
 use serde_json::Value;
 use tokio;
 
+mod utils;
 mod requests;
 mod speedtest;
+use utils::justify_name;
 use speedtest::SpeedTest;
 
 /// Simple program to test network
@@ -23,6 +25,9 @@ struct Args {
     /// Number of thread
     #[clap(short, long, value_parser, default_value_t = 1)]
     thread: u8,
+    /// Name justify
+    #[clap(short, long, value_parser)]
+    name: Option<String>,
 }
 
 async fn get_servers(args: &Args) -> Result<Option<HashMap<String, String>>, Box<dyn Error>> {
@@ -104,6 +109,13 @@ async fn run_once(args: Args) -> (f64, f64, f64, f64) {
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
+
+    let args_name = args.name.clone();
+    if let Some(name) = args_name {
+        print!("{}", justify_name(&name));
+        return;
+    }
+
     env_logger::init();
 
     info!("Enter oneshot mode");
