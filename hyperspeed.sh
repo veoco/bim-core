@@ -61,7 +61,7 @@ speed_test(){
     local nodeLocation=$2
     local nodeISP=$3
 
-    local name=$(./bimc 0 -n $nodeLocation)
+    local name=$(./bimc 0 -n "$nodeLocation")
 
     printf "\r${RED}%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${BLUE}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}\n" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "..." "↓ " "..." "..." "..."
 
