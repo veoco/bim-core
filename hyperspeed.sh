@@ -18,7 +18,7 @@ check_wget() {
 
 check_bimc() {
     if  [ ! -e './bimc' ]; then
-        echo "正在获取 bim-core"
+        echo "正在获取组件"
         wget --no-check-certificate -qO bimc https://github.com/veoco/bim-core/releases/download/v0.7.7/bimc-v0.7.7-$(uname -m)-unknown-linux-musl > /dev/null 2>&1
         chmod +x bimc
     fi
@@ -26,9 +26,9 @@ check_bimc() {
 
 print_info() {
     echo "—————————————————————————— HyperSpeed ——————————————————————————————"
-    echo "         bash <(curl -Lso- https://bench.im/hyperspeed)"
-    echo "         修改自：https://github.com/ernisn/superspeed"
-    echo "         节点更新: 2022/08/20  | 脚本更新: 2022/09/19"
+    echo "          bash <(curl -Lso- https://bench.im/hyperspeed)"
+    echo "          项目修改自: https://github.com/ernisn/superspeed"
+    echo "     节点更新: 2022/08/20 | 脚本更新: 2022/09/20 | 组件版本: 0.7.7"
     echo "————————————————————————————————————————————————————————————————————"
 }
 
@@ -85,13 +85,13 @@ run_test() {
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 3 ]]; then
         speed_test '595' '上海' '电信'
-        speed_test '5641' '江苏南京５Ｇ' '电信'
+        speed_test '5641' '江苏南京 5G' '电信'
         speed_test '6340' '四川成都' '电信'
     fi
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 4 ]]; then
-        speed_test '5135' '上海５Ｇ' '联通'
-        speed_test '868' '湖南长沙５Ｇ' '联通'
+        speed_test '5135' '上海 5G' '联通'
+        speed_test '868' '湖南长沙 5G' '联通'
         speed_test '8881' '辽宁沈阳' '联通'
     fi
 
