@@ -100,7 +100,7 @@ run_test() {
     if [[ ${selection} == 1 ]] || [[ ${selection} == 5 ]]; then
         speed_test '1332' '浙江宁波' '移动'
         speed_test '3430' '福建福州' '移动'
-        speed_test '817' '四川成都' '移动'
+        speed_test '3356' '广西南宁' '移动'
     fi
 
     if [[ ${selection} == 0 ]]; then
