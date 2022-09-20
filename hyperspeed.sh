@@ -87,13 +87,13 @@ run_test() {
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 3 ]]; then
         speed_test '595' '上海' '电信'
-        speed_test '5641' '江苏南京 5G' '电信'
+        speed_test '5641' '江苏南京5G' '电信'
         speed_test '6340' '四川成都' '电信'
     fi
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 4 ]]; then
-        speed_test '5135' '上海 5G' '联通'
-        speed_test '868' '湖南长沙 5G' '联通'
+        speed_test '5135' '上海5G' '联通'
+        speed_test '868' '湖南长沙5G' '联通'
         speed_test '8881' '辽宁沈阳' '联通'
     fi
 
