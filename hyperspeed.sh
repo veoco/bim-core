@@ -19,7 +19,11 @@ check_wget() {
 check_bimc() {
     if  [ ! -e './bimc' ]; then
         echo "正在获取组件"
-        wget --no-check-certificate -qO bimc https://bench.im/bimc-$(uname -m) > /dev/null 2>&1
+        arch=$(uname -m)
+        if [ "${arch}" == "i686" ]; then
+            arch="i586"
+        fi
+        wget --no-check-certificate -qO bimc https://bench.im/bimc-$(arch) > /dev/null 2>&1
         chmod +x bimc
     fi
 }
