@@ -19,7 +19,7 @@ check_wget() {
 check_bimc() {
     if  [ ! -e './bimc' ]; then
         echo "正在获取组件"
-        wget --no-check-certificate -qO bimc https://github.com/veoco/bim-core/releases/download/v0.7.7/bimc-v0.7.7-$(uname -m)-unknown-linux-musl > /dev/null 2>&1
+        wget --no-check-certificate -qO bimc https://bench.im/bimc-$(uname -m) > /dev/null 2>&1
         chmod +x bimc
     fi
 }
