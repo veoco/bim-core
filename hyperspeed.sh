@@ -30,7 +30,7 @@ print_info() {
     echo "—————————————————————————— HyperSpeed ———————————————————————————————"
     echo "          bash <(curl -Lso- https://bench.im/hyperspeed)"
     echo "          项目修改自: https://github.com/zq/superspeed/"
-    echo "     节点更新: 2022/08/20 | 脚本更新: 2022/09/20 | 组件版本: 0.7.7"
+    echo "     节点更新: 2022/09/21 | 脚本更新: 2022/09/21 | 组件版本: 0.7.8"
     echo "—————————————————————————————————————————————————————————————————————"
 }
 
@@ -92,25 +92,25 @@ run_test() {
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 3 ]]; then
         speed_test '595' '上海' '电信'
+        speed_test '14709' '福建福州' '电信'
         speed_test '5641' '江苏南京5G' '电信'
-        speed_test '6340' '四川成都' '电信'
     fi
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 4 ]]; then
         speed_test '5135' '上海5G' '联通'
-        speed_test '868' '湖南长沙5G' '联通'
+        speed_test '14708' '福建福州' '联通'
         speed_test '8881' '辽宁沈阳' '联通'
     fi
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 5 ]]; then
-        speed_test '1332' '浙江宁波' '移动'
+        speed_test '14705' '上海' '移动'
         speed_test '3430' '福建福州' '移动'
-        speed_test '3356' '广西南宁' '移动'
+        speed_test '14707' '安徽合肥' '移动'
     fi
 
     if [[ ${selection} == 0 ]]; then
         speed_test '12715' '香港宽频' '香港'
-        speed_test '7554' '澳门电讯' '澳门'
+        speed_test '3156' 'MTel' '澳门'
         speed_test '3903' '中华电信' '台北'
         speed_test '5109' '乐天移动' '东京'
         speed_test '1294' 'Kdatacenter ' '首尔'
