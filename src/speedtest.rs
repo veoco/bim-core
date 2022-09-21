@@ -59,7 +59,13 @@ impl SpeedTest {
     pub async fn resolve_ip(url: &str, ipv6: bool) -> Result<Option<SocketAddr>, Box<dyn Error>> {
         let resolver =
             TokioAsyncResolver::tokio(ResolverConfig::cloudflare(), ResolverOpts::default())?;
+
         let url = Url::parse(url)?;
+        if url.domain().is_none() {
+            let addr = url.socket_addrs(|| None).unwrap()[0];
+            return Ok(Some(addr));
+        }
+
         let host = url.host_str().unwrap();
         let port = url.port_or_known_default().unwrap();
         if ipv6 {
