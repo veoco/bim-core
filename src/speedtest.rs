@@ -183,9 +183,7 @@ impl SpeedTest {
         let counter = Arc::new(Mutex::new(0u128));
 
         let mut url = Url::parse(&self.download_url)?;
-        if self.provider == "LibreSpeed" {
-            url.set_query(Some("ckSize=1024"));
-        }
+        url.set_query(Some("size=25000000&ckSize=1024"));
 
         for _i in 0..self.thread {
             let url = url.clone();
