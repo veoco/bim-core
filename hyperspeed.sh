@@ -30,7 +30,7 @@ print_info() {
     echo "—————————————————————————— HyperSpeed ———————————————————————————————"
     echo "          bash <(wget -qO- https://bench.im/hyperspeed)"
     echo "          项目修改自: https://github.com/zq/superspeed/"
-    echo "     节点更新: 2022/09/21 | 脚本更新: 2022/09/21 | 组件版本: 0.7.8"
+    echo "     节点更新: 2022/09/21 | 脚本更新: 2022/09/22 | 组件版本: 0.7.8"
     echo "—————————————————————————————————————————————————————————————————————"
 }
 
@@ -109,8 +109,8 @@ run_test() {
     fi
 
     if [[ ${selection} == 0 ]]; then
-        speed_test '12715' '香港宽频' '香港'
-        speed_test '3156' 'MTel' '澳门'
+        speed_test '8070' '环电宽频' '香港'
+        speed_test '7554' '澳门电讯' '澳门'
         speed_test '3903' '中华电信' '台北'
         speed_test '5109' '乐天移动' '东京'
         speed_test '1294' 'Kdatacenter ' '首尔'
