@@ -30,7 +30,7 @@ print_info() {
     echo "—————————————————————————— HyperSpeed ———————————————————————————————"
     echo "          bash <(wget -qO- https://bench.im/hyperspeed)"
     echo "          项目修改自: https://github.com/zq/superspeed/"
-    echo "     节点更新: 2022/09/21 | 脚本更新: 2022/09/22 | 组件版本: 0.7.8"
+    echo "     节点更新: 2022/09/24 | 脚本更新: 2022/09/24 | 组件版本: 0.7.8"
     echo "—————————————————————————————————————————————————————————————————————"
 }
 
@@ -39,11 +39,12 @@ print_info() {
 get_options() {
     echo -e "  测速类型:    ${GREEN}1.${ENDC} 三网测速    ${GREEN}2.${ENDC} 取消测速    ${GREEN}0.${ENDC} 港澳台日韩"
     echo -e "               ${GREEN}3.${ENDC} 电信节点    ${GREEN}4.${ENDC} 联通节点    ${GREEN}5.${ENDC} 移动节点"
+    echo -e "               ${GREEN}6.${ENDC} 教育网IPv4  ${GREEN}7.${ENDC} 教育网IPv6"
     while :; do read -p "  请选择测速类型(默认: 1): " selection
         if [[ "$selection" == "" ]]; then
             selection=1
             break
-        elif [[ ! $selection =~ ^[0-5]$ ]]; then
+        elif [[ ! $selection =~ ^[0-7]$ ]]; then
             echo -e "  ${RED}输入错误${ENDC}, 请输入正确的数字!"
         else
             break   
@@ -66,11 +67,16 @@ speed_test(){
     local nodeID=$1
     local nodeLocation=$2
     local nodeISP=$3
+    local extra=$4
     local name=$(./bimc 0 -n "$nodeLocation")
 
     printf "\r${YELLOW}B${RED}%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${BLUE}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "..." "↓ " "..." "..." "..."
 
-    output=$(./bimc $1 -t $thread)
+    if [[ "$extra" == "" ]]; then
+        output=$(./bimc $1 -t $thread)
+    else
+        output=$(./bimc $1 -t $thread $extra)
+    fi
 
     local upload=$(echo $output | cut -d ',' -f1)
     local download=$(echo $output | cut -d ',' -f2)
@@ -108,6 +114,18 @@ run_test() {
         speed_test '14707' '安徽合肥' '移动'
     fi
 
+    if [[ ${selection} == 6 ]]; then
+        speed_test '14710' '中国科技大学' '合肥'
+        speed_test '14715' '东北大学' '沈阳'
+        speed_test '14714' '上海交通大学' '上海'
+    fi
+
+    if [[ ${selection} == 7 ]]; then
+        speed_test '14711' '中国科技大学' '合肥' '-6'
+        speed_test '14715' '东北大学' '沈阳' '-6'
+        speed_test '14714' '上海交通大学' '上海' '-6'
+    fi
+
     if [[ ${selection} == 0 ]]; then
         speed_test '8070' '环电宽频' '香港'
         speed_test '7554' '澳门电讯' '澳门'
@@ -117,17 +135,17 @@ run_test() {
     fi
 
     end=$(date +%s)
-        echo -e "\r—————————————————————————————————————————————————————————————————————"
-        time=$(( $end - $start ))
-        if [[ $time -gt 60 ]]; then
-            min=$(expr $time / 60)
-            sec=$(expr $time % 60)
-            echo -ne "  测试完成, 本次测速耗时: ${min} 分 ${sec} 秒"
-        else
-            echo -ne "  测试完成, 本次测速耗时: ${time} 秒"
-        fi
-        echo -ne "\n  当前时间: "
-        echo $(date +%Y-%m-%d" "%H:%M:%S)
+    echo -e "\r—————————————————————————————————————————————————————————————————————"
+    time=$(( $end - $start ))
+    if [[ $time -gt 60 ]]; then
+        min=$(expr $time / 60)
+        sec=$(expr $time % 60)
+        echo -ne "  测试完成, 本次测速耗时: ${min} 分 ${sec} 秒"
+    else
+        echo -ne "  测试完成, 本次测速耗时: ${time} 秒"
+    fi
+    echo -ne "\n  当前时间: "
+    echo $(date +%Y-%m-%d" "%H:%M:%S)
 }
 
 run_all() {
