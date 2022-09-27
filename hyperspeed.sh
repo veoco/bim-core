@@ -145,7 +145,7 @@ run_test() {
         echo -ne "  测试完成, 本次测速耗时: ${time} 秒"
     fi
     echo -ne "\n  当前时间: "
-    echo $(date +%Y-%m-%d" "%H:%M:%S)
+    echo $(date +%Y-%m-%d" "%H:%M:%S%:z)
 }
 
 run_all() {
