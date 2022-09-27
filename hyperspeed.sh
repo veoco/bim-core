@@ -104,7 +104,7 @@ run_test() {
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 4 ]]; then
         speed_test '5135' '上海5G' '联通'
-        speed_test '14708' '福建福州' '联通'
+        speed_test '14716' '广东广州' '联通'
         speed_test '8881' '辽宁沈阳' '联通'
     fi
 
