@@ -69,7 +69,7 @@ speed_test(){
     local extra=$4
     local name=$(./bimc 0 -n "$nodeLocation")
 
-    printf "\r${YELLOW}B${RED}%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${CYAN}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "..." "↓ " "..." "..." "..."
+    printf "\r${RED}B%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${CYAN}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "..." "↓ " "..." "..." "..."
 
     if [[ "$extra" == "" ]]; then
         output=$(./bimc $1 -t $thread)
