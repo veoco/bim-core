@@ -3,7 +3,6 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
 PURPLE="\033[0;35m"
 CYAN='\033[0;36m'
 ENDC='\033[0m'
@@ -30,7 +29,7 @@ print_info() {
     echo "—————————————————————————— HyperSpeed ———————————————————————————————"
     echo "          bash <(wget -qO- https://bench.im/hyperspeed)"
     echo "          项目修改自: https://github.com/zq/superspeed/"
-    echo "     节点更新: 2022/09/24 | 脚本更新: 2022/09/24 | 组件版本: 0.7.8"
+    echo "     节点更新: 2022/09/27 | 脚本更新: 2022/09/27 | 组件版本: 0.7.8"
     echo "—————————————————————————————————————————————————————————————————————"
 }
 
@@ -70,7 +69,7 @@ speed_test(){
     local extra=$4
     local name=$(./bimc 0 -n "$nodeLocation")
 
-    printf "\r${YELLOW}B${RED}%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${BLUE}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "..." "↓ " "..." "..." "..."
+    printf "\r${YELLOW}B${RED}%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${CYAN}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "..." "↓ " "..." "..." "..."
 
     if [[ "$extra" == "" ]]; then
         output=$(./bimc $1 -t $thread)
@@ -84,7 +83,7 @@ speed_test(){
     local jitter=$(echo $output | cut -d ',' -f4)
             
     if [[ $(awk -v num1=${upload} -v num2=0.0 'BEGIN{print(num1>num2)?"1":"0"}') -eq 1 ]]; then
-        printf "\r${YELLOW}B${RED}%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${BLUE}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}\n" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "${upload}" "↓ " "${download}" "${latency}" "${jitter}"
+        printf "\r${RED}B%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${CYAN}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}\n" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "${upload}" "↓ " "${download}" "${latency}" "${jitter}"
     fi
 
 }
