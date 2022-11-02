@@ -29,7 +29,7 @@ print_info() {
     echo "—————————————————————————— HyperSpeed ———————————————————————————————"
     echo "          bash <(wget -qO- https://bench.im/hyperspeed)"
     echo "          项目修改自: https://github.com/zq/superspeed/"
-    echo "     节点更新: 2022/09/27 | 脚本更新: 2022/09/27 | 组件版本: 0.7.8"
+    echo "     节点更新: 2022/11/02 | 脚本更新: 2022/09/27 | 组件版本: 0.7.8"
     echo "—————————————————————————————————————————————————————————————————————"
 }
 
@@ -110,7 +110,7 @@ run_test() {
     if [[ ${selection} == 1 ]] || [[ ${selection} == 5 ]]; then
         speed_test '14705' '上海' '移动'
         speed_test '3430' '福建福州' '移动'
-        speed_test '14707' '安徽合肥' '移动'
+        speed_test '14717' '北京' '移动'
     fi
 
     if [[ ${selection} == 6 ]]; then
