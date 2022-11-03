@@ -29,7 +29,7 @@ print_info() {
     echo "—————————————————————————— HyperSpeed ———————————————————————————————"
     echo "          bash <(wget -qO- https://bench.im/hyperspeed)"
     echo "          项目修改自: https://github.com/zq/superspeed/"
-    echo "     节点更新: 2022/11/02 | 脚本更新: 2022/09/27 | 组件版本: 0.7.8"
+    echo "     节点更新: 2022/11/02 | 脚本更新: 2022/11/03 | 组件版本: 0.8.0"
     echo "—————————————————————————————————————————————————————————————————————"
 }
 
@@ -39,22 +39,12 @@ get_options() {
     echo -e "  测速类型:    ${GREEN}1.${ENDC} 三网测速    ${GREEN}2.${ENDC} 取消测速    ${GREEN}0.${ENDC} 港澳台日韩"
     echo -e "               ${GREEN}3.${ENDC} 电信节点    ${GREEN}4.${ENDC} 联通节点    ${GREEN}5.${ENDC} 移动节点"
     echo -e "               ${GREEN}6.${ENDC} 教育网IPv4  ${GREEN}7.${ENDC} 教育网IPv6"
-    while :; do read -p "  请选择测速类型(默认: 1): " selection
+    while :; do read -p "  请选择单线程测速类型(默认: 1): " selection
         if [[ "$selection" == "" ]]; then
             selection=1
             break
         elif [[ ! $selection =~ ^[0-7]$ ]]; then
             echo -e "  ${RED}输入错误${ENDC}, 请输入正确的数字!"
-        else
-            break   
-        fi
-    done
-    while :; do read -p "  请输入测速线程数量(默认: 1): " thread
-        if [[ "$thread" == "" ]]; then
-            thread=1
-            break
-        elif [[ ! $thread =~ ^[1-9][0-9]?$ ]]; then
-                echo -e "  ${RED}输入错误${ENDC}, 请输入正确的数字!"
         else
             break   
         fi
@@ -72,9 +62,9 @@ speed_test(){
     printf "\r${RED}B%-6s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-10s${CYAN}%s%-10s${GREEN}%-10s${PURPLE}%-6s${ENDC}" "${nodeID}"  "${nodeISP}" "|" "${name}" "↑ " "..." "↓ " "..." "..." "..."
 
     if [[ "$extra" == "" ]]; then
-        output=$(./bimc $1 -t $thread)
+        output=$(./bimc $1)
     else
-        output=$(./bimc $1 -t $thread $extra)
+        output=$(./bimc $1 $extra)
     fi
 
     local upload=$(echo $output | cut -d ',' -f1)
