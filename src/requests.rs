@@ -1,123 +1,312 @@
 use std::error::Error;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::io::{Read, Write};
+use std::net::{SocketAddr, TcpStream};
 use std::time::{Duration, Instant};
 
-use bytes::{BufMut, BytesMut};
+use log::debug;
+use openssl::ssl::{SslConnector, SslMethod, SslStream};
 use rand::prelude::*;
-use reqwest::{header, Body, Url};
-use tokio::net::TcpStream;
-use tokio::sync::{watch::Receiver, Barrier, Mutex};
+use url::Url;
 
-pub async fn request_tcp_ping(host: &SocketAddr) -> Result<u128, Box<dyn Error + Send + Sync>> {
+pub fn make_connection(address: &SocketAddr) -> Result<TcpStream, Box<dyn Error>> {
+    let stream = TcpStream::connect_timeout(&address, Duration::from_micros(3_000_000))?;
+    debug!("TCP connected");
+    let _r = stream.set_write_timeout(Some(Duration::from_secs(3)));
+    let _r = stream.set_read_timeout(Some(Duration::from_secs(3)));
+    Ok(stream)
+}
+
+pub fn make_ssl_connection(
+    address: &SocketAddr,
+    url: &Url,
+) -> Result<SslStream<TcpStream>, Box<dyn Error>> {
+    let stream = TcpStream::connect_timeout(&address, Duration::from_micros(3_000_000))?;
+    debug!("TCP connected");
+    let _r = stream.set_write_timeout(Some(Duration::from_secs(3)));
+    let _r = stream.set_read_timeout(Some(Duration::from_secs(3)));
+
+    let connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
+    let ssl_stream = connector.connect(url.host_str().unwrap(), stream)?;
+    debug!("SSL connected");
+    Ok(ssl_stream)
+}
+
+pub fn request_tcp_ping(address: &SocketAddr) -> Result<u128, Box<dyn Error>> {
     let now = Instant::now();
-    let _stream = TcpStream::connect(host).await?;
+    let r = TcpStream::connect_timeout(&address, Duration::from_micros(1_000_000));
     let used = now.elapsed().as_micros();
+    let used = match r {
+        Ok(_) => used,
+        Err(e) => {
+            debug!("Ping {e}");
+            1_000_000
+        }
+    };
     Ok(used)
 }
 
-pub async fn request_http_download(
-    mut url: Url,
-    addr: SocketAddr,
-    barrier: Arc<Barrier>,
-    stop_rx: Receiver<&str>,
-    counter: Arc<Mutex<u128>>,
-) -> Result<bool, Box<dyn Error + Send + Sync>> {
-    let u = url.clone();
-    let domain = u.host_str().unwrap();
+pub fn request_http_download(
+    address: SocketAddr,
+    url: Url,
+    connection_close: bool,
+) -> Result<f64, Box<dyn Error>> {
+    let mut counter = 0u128;
+    let chunk_count = if connection_close {
+        debug!("Enter connection close mode");
+        15_000
+    } else {
+        25
+    };
+    let data_size = chunk_count * 1024 * 1024 as u128;
+    let mut data_counter = data_size;
+    let mut buffer = [0; 16384];
 
-    let u = url.clone();
-    let q = u.query();
-
-    let mut headers = header::HeaderMap::new();
-    headers.insert(
-        header::USER_AGENT,
-        header::HeaderValue::from_static("bim 1"),
+    let host_port = format!(
+        "{}:{}",
+        url.host_str().unwrap(),
+        url.port_or_known_default().unwrap()
     );
+    let path_str = url.path();
 
-    let client = reqwest::Client::builder()
-        .resolve(domain, addr)
-        .default_headers(headers)
-        .timeout(Duration::from_secs(15))
-        .build()?;
+    let mut stream = make_connection(&address)?;
 
-    let _r = barrier.wait().await;
-    while *stop_rx.borrow() != "stop" {
-        let r = random::<f64>().to_string();
-        let rq = format!("r={}", r);
-        let query = match q {
-            Some(s) => rq +"&" + s,
-            None => rq,
-        };
-        url.set_query(Some(&query));
+    let now = Instant::now();
+    let mut time_used = 0;
+    while time_used < 14_500_000 {
+        if data_counter >= data_size {
+            let rd = random::<f64>().to_string();
+            let path_query = format!(
+                "{}?cors=true&r={}&ckSize={}&size={}",
+                path_str, rd, chunk_count, data_size
+            );
+            debug!("Download {path_query}");
 
-        let mut stream = match client.get(url.clone()).send().await {
-            Ok(s) => s,
-            Err(_) => continue,
-        };
-        while let Some(chunk) = stream.chunk().await? {
-            let mut count = counter.lock().await;
-            *count += chunk.len() as u128;
-            if *stop_rx.borrow() == "stop" {
-                break;
+            let request_head = format!(
+                "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: bim/1.0\r\n\r\n",
+                path_query, host_port,
+            )
+            .into_bytes();
+
+            let r = stream.write_all(&request_head);
+            match r {
+                Ok(_) => {
+                    data_counter = 0;
+                    debug!("Downloaded: {}", counter);
+                }
+                Err(e) => {
+                    debug!("Download Error: {}", e);
+                    return Err(Box::new(e));
+                }
             }
+        } else {
+            let _r = stream.read_exact(&mut buffer);
+            counter += 16384;
+            data_counter += 16384;
         }
+        time_used = now.elapsed().as_micros();
     }
 
-    Ok(true)
+    let r = (counter * 8) as f64 / time_used as f64;
+    debug!("Downloaded {counter} bytes in {time_used} us, speed {r}");
+
+    Ok(r)
 }
 
-pub async fn request_http_upload(
-    mut url: Url,
-    addr: SocketAddr,
-    barrier: Arc<Barrier>,
-    stop_rx: Receiver<&str>,
-    counter: Arc<Mutex<u128>>,
-) -> Result<bool, Box<dyn Error + Send + Sync>> {
-    let s = "0123456789AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz-=".repeat(512);
+pub fn request_https_download(
+    address: SocketAddr,
+    url: Url,
+    connection_close: bool,
+) -> Result<f64, Box<dyn Error>> {
+    let mut counter = 0u128;
+    let chunk_count = if connection_close {
+        debug!("Enter connection close mode");
+        15_000
+    } else {
+        25
+    };
+    let data_size = chunk_count * 1024 * 1024 as u128;
+    let mut data_counter = data_size;
+    let mut buffer = [0; 16384];
 
-    let u = url.clone();
-    let domain = u.host_str().unwrap();
-
-    let mut headers = header::HeaderMap::new();
-    headers.insert(
-        header::USER_AGENT,
-        header::HeaderValue::from_static("bim 1"),
+    let host_port = format!(
+        "{}:{}",
+        url.host_str().unwrap(),
+        url.port_or_known_default().unwrap()
     );
+    let path_str = url.path();
 
-    let _r = barrier.wait().await;
-    while *stop_rx.borrow() != "stop" {
-        let mut data = BytesMut::new();
-        data.put(s.as_bytes());
+    let mut stream = make_ssl_connection(&address, &url)?;
 
-        let c = counter.clone();
-        let s = async_stream::stream! {
-            loop {
+    let now = Instant::now();
+    let mut time_used = 0;
+    while time_used < 14_500_000 {
+        if data_counter >= data_size {
+            let rd = random::<f64>().to_string();
+            let path_query = format!(
+                "{}?cors=true&r={}&ckSize={}&size={}",
+                path_str, rd, chunk_count, data_size
+            );
+            debug!("Download {path_query}");
 
-                let chunk: Result<BytesMut, std::io::Error> = Ok(data.clone());
-                let mut count = c.lock().await;
-                *count += 32768;
-                yield chunk;
+            let request_head = format!(
+                "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: bim/1.0\r\n\r\n",
+                path_query, host_port,
+            )
+            .into_bytes();
+
+            let r = stream.write_all(&request_head);
+            match r {
+                Ok(_) => {
+                    data_counter = 0;
+                    debug!("Downloaded: {}", counter);
+                }
+                Err(e) => {
+                    debug!("Download Error: {}", e);
+                    return Err(Box::new(e));
+                }
             }
-        };
-
-        let body = Body::wrap_stream(s);
-        let client = reqwest::Client::builder()
-            .resolve(domain, addr)
-            .default_headers(headers.clone())
-            .build()?;
-        
-        let r = random::<f64>().to_string();
-        let query = format!("r={}", r);
-        url.set_query(Some(&query));
-
-        let _res = client
-            .post(url.clone())
-            .body(body)
-            .timeout(Duration::from_secs(15))
-            .send()
-            .await;
+        } else {
+            let _r = stream.read_exact(&mut buffer);
+            counter += 16384;
+            data_counter += 16384;
+        }
+        time_used = now.elapsed().as_micros();
     }
 
-    Ok(true)
+    let r = (counter * 8) as f64 / time_used as f64;
+    debug!("Downloaded {counter} bytes in {time_used} us, speed {r}");
+
+    Ok(r)
+}
+
+pub fn request_http_upload(
+    address: SocketAddr,
+    url: Url,
+    connection_close: bool,
+) -> Result<f64, Box<dyn Error>> {
+    let mut counter = 0u128;
+    let chunk_count = if connection_close {
+        debug!("Enter connection close mode");
+        15_000
+    } else {
+        25
+    };
+    let data_size = chunk_count * 1024 * 1024 as u128;
+    let mut data_counter = data_size;
+
+    let host_port = format!(
+        "{}:{}",
+        url.host_str().unwrap(),
+        url.port_or_known_default().unwrap()
+    );
+    let url_path = url.path();
+    let request_chunk = "0123456789AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz-="
+        .repeat(256)
+        .into_bytes();
+
+    let mut stream = make_connection(&address)?;
+    let mut time_used = 0;
+
+    let now = Instant::now();
+    while time_used < 14_500_000 {
+        if data_counter >= data_size {
+            let rd = random::<f64>().to_string();
+            let path_query = format!("{}?r={}", url_path, rd);
+            debug!("Upload {path_query} size {data_size}");
+
+            let request_head = format!(
+                "POST {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: bim/1.0\r\nContent-Length: {}\r\n\r\n",
+                path_query, host_port, data_size
+            )
+            .into_bytes();
+
+            let r = stream.write_all(&request_head);
+            match r {
+                Ok(_) => {
+                    counter += request_head.len() as u128;
+                    data_counter = 0;
+                    debug!("Uploaded: {}", counter);
+                }
+                Err(e) => {
+                    debug!("Upload Error: {}", e);
+                    return Err(Box::new(e));
+                }
+            }
+        } else {
+            let _r = stream.write_all(&request_chunk);
+            counter += 16384;
+            data_counter += 16384;
+        }
+        time_used = now.elapsed().as_micros();
+    }
+
+    let r = (counter * 8) as f64 / time_used as f64;
+    debug!("Uploaded {counter} bytes in {time_used} us, speed {r}");
+    Ok(r)
+}
+
+pub fn request_https_upload(
+    address: SocketAddr,
+    url: Url,
+    connection_close: bool,
+) -> Result<f64, Box<dyn Error>> {
+    let mut counter = 0u128;
+    let chunk_count = if connection_close {
+        debug!("Enter connection close mode");
+        15_000
+    } else {
+        25
+    };
+    let data_size = chunk_count * 1024 * 1024 as u128;
+    let mut data_counter = data_size;
+
+    let host_port = format!(
+        "{}:{}",
+        url.host_str().unwrap(),
+        url.port_or_known_default().unwrap()
+    );
+    let url_path = url.path();
+    let request_chunk = "0123456789AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz-="
+        .repeat(256)
+        .into_bytes();
+
+    let mut stream = make_ssl_connection(&address, &url)?;
+    let mut time_used = 0;
+
+    let now = Instant::now();
+    while time_used < 14_500_000 {
+        if data_counter >= data_size {
+            let rd = random::<f64>().to_string();
+            let path_query = format!("{}?r={}", url_path, rd);
+            debug!("Upload {path_query} size {data_size}");
+
+            let request_head = format!(
+                "POST {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: bim/1.0\r\nContent-Length: {}\r\n\r\n",
+                path_query, host_port, data_size
+            )
+            .into_bytes();
+
+            let r = stream.write_all(&request_head);
+            match r {
+                Ok(_) => {
+                    counter += request_head.len() as u128;
+                    data_counter = 0;
+                    debug!("Uploaded: {}", counter);
+                }
+                Err(e) => {
+                    debug!("Upload Error: {}", e);
+                    return Err(Box::new(e));
+                }
+            }
+        } else {
+            let _r = stream.write_all(&request_chunk);
+            counter += 16384;
+            data_counter += 16384;
+        }
+        time_used = now.elapsed().as_micros();
+    }
+
+    let r = (counter * 8) as f64 / time_used as f64;
+    debug!("Uploaded {counter} bytes in {time_used} us, speed {r}");
+    Ok(r)
 }
