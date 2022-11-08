@@ -6,7 +6,7 @@ use std::time::Duration;
 use log::debug;
 use url::Url;
 
-use crate::requests::{request_http_download, request_http_upload, request_tcp_ping, request_https_download, request_https_upload};
+use crate::requests::{request_http_download, request_http_upload, request_tcp_ping};
 
 pub struct SpeedTest {
     pub provider: String,
@@ -127,12 +127,9 @@ impl SpeedTest {
         let url = self.download_url.clone();
         let address = self.address.clone();
 
-        let res;
-        if url.scheme() == "https" {
-            res = request_https_download(address, url, self.connection_close)?;
-        } else {
-            res = request_http_download(address, url, self.connection_close)?;
-        }
+        let ssl = if url.scheme() == "https" {true} else {false};
+        let res = request_http_download(address, url, self.connection_close, ssl)?;
+
         self.download = res;
 
         Ok(true)
@@ -142,12 +139,9 @@ impl SpeedTest {
         let url = self.upload_url.clone();
         let address = self.address.clone();
 
-        let res;
-        if url.scheme() == "https" {
-            res = request_https_upload(address, url, self.connection_close)?;
-        } else {
-            res = request_http_upload(address, url, self.connection_close)?;
-        }
+        let ssl = if url.scheme() == "https" {true} else {false};
+        let res = request_http_upload(address, url, self.connection_close, ssl)?;
+
         self.upload = res;
 
         Ok(true)
