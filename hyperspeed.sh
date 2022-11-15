@@ -105,9 +105,9 @@ run_test() {
     fi
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 5 ]]; then
-        speed_test 'HTTP' '上海' '移动' '' 'aHR0cDovL3NwZWVkdGVzdDQuc2guY2hpbmFtb2JpbGUuY29tOjgwODAvZG93bmxvYWQK' 'aHR0cDovL3NwZWVkdGVzdDQuc2guY2hpbmFtb2JpbGUuY29tOjgwODAvdXBsb2FkCg=='
         speed_test 'HTTP' '北京' '移动' '' 'aHR0cDovLzIxMS4xMzYuMzAuMTE0OjkwMDAvc3BlZWQvMjAwMDAwMC5kYXRhCg==' 'aHR0cDovLzIxMS4xMzYuMzAuMTE0OjkwMDAvc3BlZWQvMjAwMDAwLmRhdGEK'
         speed_test 'HTTP' '河南郑州5G' '移动' '' 'aHR0cDovL3NwZWVkdGVzdC5lYXN0Y29tLnNpdGU6ODA4MC9kb3dubG9hZA==' 'aHR0cDovL3NwZWVkdGVzdC5lYXN0Y29tLnNpdGU6ODA4MC91cGxvYWQ='
+        speed_test 'HTTP' '陕西西安5G' '移动' '' 'aHR0cDovL3NwZWVkdGVzdC5vbmUtcHVuY2gud2luOjgwODAvZG93bmxvYWQ=' 'aHR0cDovL3NwZWVkdGVzdC5vbmUtcHVuY2gud2luOjgwODAvdXBsb2Fk'
         speed_test 'HTTP' '四川成都' '移动' '' 'aHR0cDovL3NwZWVkdGVzdDEuc2MuY2hpbmFtb2JpbGUuY29tOjgwODAvZG93bmxvYWQ=' 'aHR0cDovL3NwZWVkdGVzdDEuc2MuY2hpbmFtb2JpbGUuY29tOjgwODAvdXBsb2Fk'
         speed_test 'HTTP' '甘肃兰州' '移动' '' 'aHR0cDovL3NwZWVkdGVzdDEuZ3MuY2hpbmFtb2JpbGUuY29tOjgwODAvZG93bmxvYWQ=' 'aHR0cDovL3NwZWVkdGVzdDEuZ3MuY2hpbmFtb2JpbGUuY29tOjgwODAvdXBsb2Fk'
     fi
