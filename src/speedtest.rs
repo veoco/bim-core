@@ -81,10 +81,10 @@ impl SpeedTest {
 
     fn ping(&mut self) -> Result<bool, Box<dyn Error>> {
         let mut count = 0;
-        let mut pings = [0u128; 11];
+        let mut pings = [0u128; 6];
         let mut ping_min = 1_000_000;
 
-        while count <= 10 {
+        while count < 6 {
             let ping = request_tcp_ping(&self.address).unwrap_or(1_000_000);
             pings[count] = ping;
             if ping < ping_min {
@@ -105,7 +105,7 @@ impl SpeedTest {
         }
 
         self.result.2 = format!("{:.1}", ping_min as f64 / 1_000.0);
-        self.result.3 = format!("{:.1}", jitter_all as f64 / 1_000_0.0);
+        self.result.3 = format!("{:.1}", jitter_all as f64 / 5_000.0);
 
         debug!("Ping {} ms", self.result.2);
         debug!("Jitter {} ms", self.result.3);

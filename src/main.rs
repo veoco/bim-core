@@ -64,6 +64,7 @@ fn main() {
     }
 
     env_logger::init();
+    openssl_probe::init_ssl_cert_env_vars();
 
     let (download, upload, ping, jitter) = run(args);
 

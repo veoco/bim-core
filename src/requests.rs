@@ -30,9 +30,14 @@ pub fn make_connection(
             }
 
             let connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
-            if let Ok(ssl_stream) = connector.connect(url.host_str().unwrap(), stream) {
-                debug!("SSL connected");
-                return Ok(Box::new(ssl_stream));
+            match connector.connect(url.host_str().unwrap(), stream) {
+                Ok(s) => {
+                    debug!("SSL connected");
+                    return Ok(Box::new(s));
+                }
+                Err(e) => {
+                    debug!("{e}"); 
+                }
             }
         }
 
