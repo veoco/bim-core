@@ -40,10 +40,8 @@ fn run(args: Args) -> (String, String, String, String) {
     );
 
     if let Some(mut c) = client {
-        let res = c.run();
-        if res {
-            return c.get_result();
-        }
+        let _ = c.run();
+        return c.get_result();
     }
 
     return (

@@ -211,9 +211,7 @@ impl SpeedTest {
 
     pub fn run(&mut self) -> bool {
         let ping = self.ping().unwrap_or(false);
-        if !ping {
-            return false;
-        } else {
+        if ping {
             thread::sleep(Duration::from_secs(1));
             let _upload = self.upload();
             thread::sleep(Duration::from_secs(1));
