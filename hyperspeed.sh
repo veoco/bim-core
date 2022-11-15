@@ -85,7 +85,7 @@ run_test() {
     [[ ${selection} == 2 ]] && exit 1
 
     echo "——————————————————————————————————————————————————————————————————————"
-    echo "类型   测速服务器信息       上传/Mbps    下载/Mbps    延迟/ms  抖动/ms"
+    echo "协议   测速服务器信息       上传/Mbps    下载/Mbps    延迟/ms  抖动/ms"
     start=$(date +%s) 
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 3 ]]; then
