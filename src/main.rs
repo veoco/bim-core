@@ -1,10 +1,6 @@
-use std::collections::HashMap;
-use std::error::Error;
 use std::fmt::Debug;
 
 use clap::Parser;
-use log::debug;
-use serde_json::Value;
 
 mod requests;
 mod speedtest;
@@ -17,109 +13,45 @@ use utils::justify_name;
 #[clap(author, version, about, long_about = None)]
 struct Args {
     #[clap(value_parser)]
-    server: u32,
+    download_url: String,
+    #[clap(value_parser)]
+    upload_url: String,
     /// Enable IPv6 only test
-    #[clap(short = '6', long, action)]
+    #[clap(short = '6', long, action, default_value_t = false)]
     ipv6: bool,
-    /// Number of thread
-    #[clap(short, long, value_parser, default_value_t = 1)]
-    thread: u8,
+    /// Enable connection close mode
+    #[clap(short, long, action, default_value_t = false)]
+    connection_close: bool,
+    /// Enable multi thread mode
+    #[clap(short, long, action, default_value_t = false)]
+    multi_thread: bool,
     /// Name justify
     #[clap(short, long, value_parser)]
     name: Option<String>,
 }
 
-fn get_server(args: &Args) -> Result<Option<HashMap<String, String>>, Box<dyn Error>> {
-    let url = format!(
-        "https://bench.im/api/search/?type=server&query={}",
-        &args.server
-    );
-    debug!("Start get server {}", &args.server);
-
-    let s = minreq::get(url)
-        .send()?
-        .json::<Value>()?
-        .get("results")
-        .unwrap()
-        .get(0)
-        .unwrap()
-        .clone();
-
-    let provider = s.get("provider").unwrap().as_str().unwrap().to_string();
-    let detail = s.get("detail").unwrap();
-    let mut r = HashMap::new();
-
-    r.insert(String::from("provider"), provider.clone());
-    r.insert(
-        String::from("ipv6"),
-        detail.get("ipv6").unwrap().to_string(),
-    );
-
-    let dl = detail.get("dl").unwrap().as_str().unwrap().to_string();
-    r.insert(
-        String::from("dl"),
-        detail.get("dl").unwrap().as_str().unwrap().to_string(),
-    );
-    r.insert(
-        String::from("ul"),
-        detail.get("ul").unwrap().as_str().unwrap().to_string(),
-    );
-
-    if dl.contains("10000gd.tech") {
-        r.insert(
-            String::from("connection_close"),
-            String::from("true"),
-        );
-    }else{
-        r.insert(
-            String::from("connection_close"),
-            String::from("false"),
-        );
-    }
-
-    debug!("Got server {}", dl);
-    Ok(Some(r))
-}
-
-fn run(args: Args) -> (f64, f64, f64, f64) {
-    let location = get_server(&args);
-    let location = match location {
-        Ok(Some(l)) => l,
-        _ => return (0.0, 0.0, 0.0, 0.0),
-    };
-
-    let provider = location.get("provider").unwrap().clone();
-
-    let ipv6 = location.get("ipv6").unwrap().clone();
-    let ipv6 = if ipv6 == "false" { false } else { true };
-    if args.ipv6 {
-        if !ipv6 {
-            return (0.0, 0.0, 0.0, 0.0);
-        }
-    }
-
-    let connection_close = location.get("connection_close").unwrap().clone();
-    let connection_close = if connection_close == "false" { false } else { true };
-
-    let download_url = location.get("dl").unwrap().clone();
-    let upload_url = location.get("ul").unwrap().clone();
-
+fn run(args: Args) -> (String, String, String, String) {
     let client = SpeedTest::build(
-        provider,
-        download_url,
-        upload_url,
-        if args.ipv6 && ipv6 { true } else { false },
-        connection_close,
+        args.download_url,
+        args.upload_url,
+        args.ipv6,
+        args.connection_close,
+        args.multi_thread,
     );
 
     if let Some(mut c) = client {
         let res = c.run();
         if res {
-            let r = c.get_result();
-            return r;
+            return c.get_result();
         }
     }
-    return (0.0, 0.0, 0.0, 0.0);
+
+    return (
+        justify_name("解析失败", 11),
+        justify_name("解析失败", 11),
+        justify_name("未启动", 9),
+        justify_name("未启动", 7),
+    );
 }
 
 fn main() {
@@ -127,7 +59,7 @@ fn main() {
 
     let args_name = args.name.clone();
     if let Some(name) = args_name {
-        print!("{}", justify_name(&name));
+        print!("{}", justify_name(&name, 16));
         return;
     }
 
@@ -135,5 +67,5 @@ fn main() {
 
     let (download, upload, ping, jitter) = run(args);
 
-    println!("{:.1},{:.1},{:.1},{:.1}", download, upload, ping, jitter);
+    println!("{download},{upload},{ping},{jitter}");
 }

@@ -51,20 +51,20 @@ pub fn get_width(o: u32) -> u8 {
     1
 }
 
-pub fn justify_name(name: &String) -> String {
+pub fn justify_name(name: &str, length: u8) -> String {
     let mut name_width = 0;
     let mut justified_name = String::new();
 
     for c in name.chars() {
         let w = get_width(c as u32);
-        if name_width + w < 16 {
+        if name_width + w < length {
             name_width += w;
             justified_name.push(c);
         }
     }
 
-    if name_width < 16 {
-        let space_count = 16 - name_width;
+    if name_width < length {
+        let space_count = length - name_width;
         justified_name += " ".repeat(space_count as usize).as_str();
     }
     justified_name

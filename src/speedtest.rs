@@ -1,36 +1,34 @@
 use std::error::Error;
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::sync::{Arc, Barrier, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use log::debug;
 use url::Url;
 
 use crate::requests::{request_http_download, request_http_upload, request_tcp_ping};
+use crate::utils::justify_name;
 
 pub struct SpeedTest {
-    pub provider: String,
     pub download_url: Url,
     pub upload_url: Url,
-
     pub ipv6: bool,
     pub connection_close: bool,
+    pub multi_thread: bool,
 
     address: SocketAddr,
 
-    upload: f64,
-    download: f64,
-    ping: f64,
-    jitter: f64,
+    pub result: (String, String, String, String),
 }
 
 impl SpeedTest {
     pub fn build(
-        provider: String,
         download_url: String,
         upload_url: String,
         ipv6: bool,
         connection_close: bool,
+        multi_thread: bool,
     ) -> Option<SpeedTest> {
         let download_url = match Url::parse(&download_url) {
             Ok(u) => u,
@@ -69,34 +67,24 @@ impl SpeedTest {
         };
         debug!("IP address {address}");
 
+        let r = String::from("未启动");
         Some(SpeedTest {
-            provider,
             download_url,
             upload_url,
             ipv6,
             connection_close,
+            multi_thread,
             address,
-            upload: 0.0,
-            download: 0.0,
-            ping: 0.0,
-            jitter: 0.0,
+            result: (r.clone(), r.clone(), r.clone(), r.clone()),
         })
-    }
-
-    pub fn get_result(&self) -> (f64, f64, f64, f64) {
-        let upload = self.upload;
-        let download = self.download;
-        let ping = self.ping;
-        let jitter = self.jitter;
-        (upload, download, ping, jitter)
     }
 
     fn ping(&mut self) -> Result<bool, Box<dyn Error>> {
         let mut count = 0;
-        let mut pings = [0u128; 10];
+        let mut pings = [0u128; 11];
         let mut ping_min = 1_000_000;
 
-        while count < 10 {
+        while count <= 10 {
             let ping = request_tcp_ping(&self.address).unwrap_or(1_000_000);
             pings[count] = ping;
             if ping < ping_min {
@@ -106,6 +94,8 @@ impl SpeedTest {
             count += 1;
         }
         if ping_min > 999_999 {
+            self.result.2 = String::from("失败");
+            self.result.3 = String::from("失败");
             return Ok(false);
         }
 
@@ -114,37 +104,109 @@ impl SpeedTest {
             jitter_all += p - ping_min;
         }
 
-        self.ping = ping_min as f64 / 1_000.0;
-        self.jitter = jitter_all as f64 / 1_000_0.0;
+        self.result.2 = format!("{:.1}", ping_min as f64 / 1_000.0);
+        self.result.3 = format!("{:.1}", jitter_all as f64 / 1_000_0.0);
 
-        debug!("Ping {} ms", self.ping);
-        debug!("Jitter {} ms", self.jitter);
+        debug!("Ping {} ms", self.result.2);
+        debug!("Jitter {} ms", self.result.3);
+
+        Ok(true)
+    }
+
+    fn run_load(&mut self, load: u8) -> Result<bool, Box<dyn Error>> {
+        let url = match load {
+            0 => self.upload_url.clone(),
+            _ => self.download_url.clone(),
+        };
+        let ssl = if url.scheme() == "https" { true } else { false };
+        let threads = if self.multi_thread { 8 } else { 1 };
+        let counter = Arc::new(Mutex::new(0u128));
+        let barrier = Arc::new(Barrier::new(threads + 1));
+
+        for _ in 0..threads {
+            let a = self.address.clone();
+            let u = url.clone();
+            let c = self.connection_close.clone();
+            let s = ssl.clone();
+            let ct = counter.clone();
+            let b = barrier.clone();
+
+            thread::spawn(move || {
+                let _ = match load {
+                    0 => request_http_upload(a, u, c, s, ct, b),
+                    _ => request_http_download(a, u, c, s, ct, b),
+                };
+            });
+        }
+
+        let mut last = 0;
+        let mut last_time = 0;
+        let mut time_passed = 0;
+        let mut results = [0.0; 28];
+        let mut index = 0;
+        let mut wait = 6;
+
+        barrier.wait();
+        let now = Instant::now();
+        while time_passed < 14_000_000 {
+            thread::sleep(Duration::from_millis(500));
+            time_passed = now.elapsed().as_micros();
+            let time_used = time_passed - last_time;
+            let current = {
+                let ct = counter.lock().unwrap();
+                *ct
+            };
+            if last == current {
+                wait -= 1;
+            }
+            let speed = ((current - last) * 8) as f64 / time_used as f64;
+            debug!("Transfered {current} bytes in {time_passed} us, speed {speed}");
+            results[index] = speed;
+            index += 1;
+            last = current;
+            last_time = time_passed;
+        }
+
+        let mut all = 0.0;
+        for i in index - 20..index {
+            all += results[i];
+        }
+        let final_speed = all / 20.0;
+
+        let res = if wait <= 0 {
+            if last == 0 {
+                format!("失败")
+            }else {
+                format!("断流")
+            }
+        } else {
+            format!("{:.1}", final_speed)
+        };
+
+        match load {
+            0 => self.result.0 = res,
+            _ => self.result.1 = res,
+        }
 
         Ok(true)
     }
 
     fn download(&mut self) -> Result<bool, Box<dyn Error>> {
-        let url = self.download_url.clone();
-        let address = self.address.clone();
-
-        let ssl = if url.scheme() == "https" {true} else {false};
-        let res = request_http_download(address, url, self.connection_close, ssl)?;
-
-        self.download = res;
-
+        let _ = self.run_load(1)?;
         Ok(true)
     }
 
     fn upload(&mut self) -> Result<bool, Box<dyn Error>> {
-        let url = self.upload_url.clone();
-        let address = self.address.clone();
-
-        let ssl = if url.scheme() == "https" {true} else {false};
-        let res = request_http_upload(address, url, self.connection_close, ssl)?;
-
-        self.upload = res;
-
+        let _ = self.run_load(0)?;
         Ok(true)
+    }
+
+    pub fn get_result(&self) -> (String, String, String, String) {
+        let upload = justify_name(&self.result.0, 11);
+        let download = justify_name(&self.result.1, 11);
+        let ping = justify_name(&self.result.2, 9);
+        let jitter = justify_name(&self.result.3, 7);
+        (upload, download, ping, jitter)
     }
 
     pub fn run(&mut self) -> bool {
@@ -152,10 +214,11 @@ impl SpeedTest {
         if !ping {
             return false;
         } else {
-            thread::sleep(Duration::from_secs(3));
+            thread::sleep(Duration::from_secs(1));
             let _upload = self.upload();
-            thread::sleep(Duration::from_secs(3));
+            thread::sleep(Duration::from_secs(1));
             let _download = self.download();
+            thread::sleep(Duration::from_secs(1));
         }
         true
     }

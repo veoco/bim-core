@@ -1,6 +1,6 @@
-use std::error::Error;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
+use std::sync::{Arc, Barrier, Mutex};
 use std::time::{Duration, Instant};
 
 use log::debug;
@@ -18,22 +18,30 @@ pub fn make_connection(
     address: &SocketAddr,
     url: &Url,
     ssl: bool,
-) -> Result<Box<dyn GenericStream>, Box<dyn Error>> {
-    let stream = TcpStream::connect_timeout(&address, Duration::from_micros(3_000_000))?;
-    debug!("TCP connected");
-    let _r = stream.set_write_timeout(Some(Duration::from_secs(3)));
-    let _r = stream.set_read_timeout(Some(Duration::from_secs(3)));
-    if !ssl {
-        return Ok(Box::new(stream));
-    }
+) -> Result<Box<dyn GenericStream>, String> {
+    let mut retry = 3;
+    while retry > 0 {
+        if let Ok(stream) = TcpStream::connect_timeout(&address, Duration::from_micros(3_000_000)) {
+            debug!("TCP connected");
+            let _r = stream.set_write_timeout(Some(Duration::from_secs(3)));
+            let _r = stream.set_read_timeout(Some(Duration::from_secs(3)));
+            if !ssl {
+                return Ok(Box::new(stream));
+            }
 
-    let connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
-    let ssl_stream = connector.connect(url.host_str().unwrap(), stream)?;
-    debug!("SSL connected");
-    Ok(Box::new(ssl_stream))
+            let connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
+            if let Ok(ssl_stream) = connector.connect(url.host_str().unwrap(), stream) {
+                debug!("SSL connected");
+                return Ok(Box::new(ssl_stream));
+            }
+        }
+
+        retry -= 1;
+    }
+    return Err(String::from("连接失败"));
 }
 
-pub fn request_tcp_ping(address: &SocketAddr) -> Result<u128, Box<dyn Error>> {
+pub fn request_tcp_ping(address: &SocketAddr) -> Result<u128, String> {
     let now = Instant::now();
     let r = TcpStream::connect_timeout(&address, Duration::from_micros(1_000_000));
     let used = now.elapsed().as_micros();
@@ -52,8 +60,9 @@ pub fn request_http_download(
     url: Url,
     connection_close: bool,
     ssl: bool,
-) -> Result<f64, Box<dyn Error>> {
-    let mut counter = 0u128;
+    counter: Arc<Mutex<u128>>,
+    barrier: Arc<Barrier>,
+) -> Result<bool, String> {
     let chunk_count = if connection_close {
         debug!("Enter connection close mode");
         15_000
@@ -71,8 +80,15 @@ pub fn request_http_download(
     );
     let path_str = url.path();
 
-    let mut stream = make_connection(&address, &url, ssl)?;
+    let mut stream = match make_connection(&address, &url, ssl) {
+        Ok(s) => s,
+        Err(e) => {
+            barrier.wait();
+            return Err(e);
+        }
+    };
 
+    barrier.wait();
     let now = Instant::now();
     let mut time_used = 0;
     while time_used < 14_500_000 {
@@ -94,25 +110,22 @@ pub fn request_http_download(
             match r {
                 Ok(_) => {
                     data_counter = 0;
-                    debug!("Downloaded: {}", counter);
                 }
                 Err(e) => {
                     debug!("Download Error: {}", e);
-                    return Err(Box::new(e));
+                    return Err(String::from("连接中断"));
                 }
             }
         } else {
             let _r = stream.read_exact(&mut buffer);
-            counter += 16384;
+            let mut ct = counter.lock().unwrap();
+            *ct += 16384;
             data_counter += 16384;
         }
         time_used = now.elapsed().as_micros();
     }
 
-    let r = (counter * 8) as f64 / time_used as f64;
-    debug!("Downloaded {counter} bytes in {time_used} us, speed {r}");
-
-    Ok(r)
+    Ok(true)
 }
 
 pub fn request_http_upload(
@@ -120,8 +133,9 @@ pub fn request_http_upload(
     url: Url,
     connection_close: bool,
     ssl: bool,
-) -> Result<f64, Box<dyn Error>> {
-    let mut counter = 0u128;
+    counter: Arc<Mutex<u128>>,
+    barrier: Arc<Barrier>,
+) -> Result<bool, String> {
     let chunk_count = if connection_close {
         debug!("Enter connection close mode");
         15_000
@@ -141,9 +155,16 @@ pub fn request_http_upload(
         .repeat(256)
         .into_bytes();
 
-    let mut stream = make_connection(&address, &url, ssl)?;
+    let mut stream = match make_connection(&address, &url, ssl) {
+        Ok(s) => s,
+        Err(e) => {
+            barrier.wait();
+            return Err(e);
+        }
+    };
     let mut time_used = 0;
 
+    barrier.wait();
     let now = Instant::now();
     while time_used < 14_500_000 {
         if data_counter >= data_size {
@@ -160,24 +181,23 @@ pub fn request_http_upload(
             let r = stream.write_all(&request_head);
             match r {
                 Ok(_) => {
-                    counter += request_head.len() as u128;
+                    let mut ct = counter.lock().unwrap();
+                    *ct += request_head.len() as u128;
                     data_counter = 0;
-                    debug!("Uploaded: {}", counter);
                 }
                 Err(e) => {
                     debug!("Upload Error: {}", e);
-                    return Err(Box::new(e));
+                    return Err(String::from("连接中断"));
                 }
             }
         } else {
             let _r = stream.write_all(&request_chunk);
-            counter += 16384;
+            let mut ct = counter.lock().unwrap();
+            *ct += 16384;
             data_counter += 16384;
         }
         time_used = now.elapsed().as_micros();
     }
 
-    let r = (counter * 8) as f64 / time_used as f64;
-    debug!("Uploaded {counter} bytes in {time_used} us, speed {r}");
-    Ok(r)
+    Ok(true)
 }
