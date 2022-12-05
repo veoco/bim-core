@@ -45,9 +45,7 @@ jobs:
         run: |
           cross build --target ${{ matrix.target }} -r
           mkdir -p ./build/release
-          wget https://github.com/upx/upx/releases/download/v4.0.1/upx-4.0.1-amd64_linux.tar.xz
-          tar -xf upx-4.0.1-amd64_linux.tar.xz
-          ./upx-4.0.1-amd64_linux/upx ./target/${{ matrix.target }}/release/bimc -o ./build/release/$OUPUT_FILENAME
+          cp ./target/${{ matrix.target }}/release/bimc ./build/release/$OUPUT_FILENAME
           cd ./build/release
           shasum -a 256 $OUPUT_FILENAME > $OUPUT_FILENAME.sha256
 
