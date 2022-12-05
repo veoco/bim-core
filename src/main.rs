@@ -1,6 +1,5 @@
-use std::fmt::Debug;
-
-use clap::Parser;
+use getopts::Options;
+use std::env;
 
 mod requests;
 mod speedtest;
@@ -8,35 +7,24 @@ mod utils;
 use speedtest::SpeedTest;
 use utils::justify_name;
 
-/// Simple program to test network
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-struct Args {
-    #[clap(value_parser)]
-    download_url: String,
-    #[clap(value_parser)]
-    upload_url: String,
-    /// Enable IPv6 only test
-    #[clap(short = '6', long, action, default_value_t = false)]
-    ipv6: bool,
-    /// Enable connection close mode
-    #[clap(short, long, action, default_value_t = false)]
-    connection_close: bool,
-    /// Enable multi thread mode
-    #[clap(short, long, action, default_value_t = false)]
-    multi_thread: bool,
-    /// Name justify
-    #[clap(short, long, value_parser)]
-    name: Option<String>,
+fn print_usage(program: &str, opts: Options) {
+    let brief = format!("Usage: {} DOWNLOAD_URL UPLOAD_URL [options]", program);
+    print!("{}", opts.usage(&brief));
 }
 
-fn run(args: Args) -> (String, String, String, String) {
+fn run(
+    download_url: String,
+    upload_url: String,
+    ipv6: bool,
+    connection_close: bool,
+    multi_thread: bool,
+) -> (String, String, String, String) {
     let client = SpeedTest::build(
-        args.download_url,
-        args.upload_url,
-        args.ipv6,
-        args.connection_close,
-        args.multi_thread,
+        download_url,
+        upload_url,
+        ipv6,
+        connection_close,
+        multi_thread,
     );
 
     if let Some(mut c) = client {
@@ -53,18 +41,60 @@ fn run(args: Args) -> (String, String, String, String) {
 }
 
 fn main() {
-    let args = Args::parse();
+    let args: Vec<String> = env::args().collect();
+    let program = args[0].clone();
 
-    let args_name = args.name.clone();
-    if let Some(name) = args_name {
-        print!("{}", justify_name(&name, 16));
+    let mut opts = Options::new();
+    opts.optflag("6", "ipv6", "enable ipv6");
+    opts.optflag("c", "close", "enable connection close mode");
+    opts.optflag("m", "multi", "enable multi thread");
+    opts.optflag("n", "name", "print justified name");
+    opts.optflag("h", "help", "print this help menu");
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => m,
+        Err(f) => {
+            println!("{}\n", f.to_string());
+            print_usage(&program, opts);
+            return;
+        }
+    };
+
+    if matches.opt_present("h") {
+        print_usage(&program, opts);
         return;
     }
+
+    let (dl, ul) = if !matches.free.is_empty() {
+        (matches.free.get(0), matches.free.get(1))
+    } else {
+        print_usage(&program, opts);
+        return;
+    };
+
+    if matches.opt_present("n") {
+        if let Some(name) = dl {
+            print!("{}", justify_name(name, 16));
+        } else {
+            print_usage(&program, opts);
+        }
+        return;
+    }
+
+    if ul.is_none() {
+        print_usage(&program, opts);
+        return;
+    }
+
+    let download_url = dl.unwrap().clone();
+    let upload_url = ul.unwrap().clone();
+    let ipv6 = matches.opt_present("6");
+    let close = matches.opt_present("c");
+    let multi = matches.opt_present("m");
 
     env_logger::init();
     openssl_probe::init_ssl_cert_env_vars();
 
-    let (download, upload, ping, jitter) = run(args);
+    let (download, upload, ping, jitter) = run(download_url, upload_url, ipv6, close, multi);
 
     println!("{download},{upload},{ping},{jitter}");
 }
