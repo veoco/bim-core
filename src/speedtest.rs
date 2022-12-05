@@ -216,7 +216,6 @@ impl SpeedTest {
             let _upload = self.upload();
             thread::sleep(Duration::from_secs(1));
             let _download = self.download();
-            thread::sleep(Duration::from_secs(1));
         }
         true
     }
