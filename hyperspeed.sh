@@ -29,7 +29,7 @@ print_info() {
     echo "——————————————————————————— HyperSpeed ———————————————————————————————"
     echo "           bash <(wget -qO- https://bench.im/hyperspeed)"
     echo "           项目修改自: https://github.com/zq/superspeed/"
-    echo "      节点更新: 2022/11/15 | 脚本更新: 2022/11/15 | 组件版本: 0.9.2"
+    echo "      节点更新: 2022/11/15 | 组件更新: 2022/12/5 | 组件版本: 0.10.1"
     echo "——————————————————————————————————————————————————————————————————————"
 }
 
@@ -49,7 +49,7 @@ get_options() {
             break   
         fi
     done
-    while :; do read -p "  启用多线程测速(留空禁用): " multi
+    while :; do read -p "  启用八线程测速(留空禁用): " multi
         if [[ "$multi" != "" ]]; then
             thread=" -m"
             break
@@ -68,9 +68,9 @@ speed_test(){
     local extra=$4
     local dl=$(echo "$5"| base64 -d)
     local ul=$(echo "$6"| base64 -d)
-    local name=$(./bimc 0 0 -n "$nodeLocation")
+    local name=$(./bimc -n "$nodeLocation")
 
-    printf "\r${GREEN}%-7s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-11s${CYAN}%s%-11s${GREEN}%-9s${PURPLE}%-7s${ENDC}" "${nodeType}"  "${nodeISP}" "|" "${name}" "↑ " "..." "↓ " "..." "..." "..."
+    printf "\r${GREEN}%-7s${YELLOW}%s%s${GREEN}%s${CYAN}%s%-11s${CYAN}%s%-11s${GREEN}%-9s${YELLOW}%-7s${ENDC}" "${nodeType}"  "${nodeISP}" "|" "${name}" "↑ " "..." "↓ " "..." "..." "..."
 
     output=$(./bimc $dl $ul$thread $extra)
     local upload="$(echo "$output" | cut -n -d ',' -f1)"
@@ -78,7 +78,7 @@ speed_test(){
     local latency="$(echo "$output" | cut -n -d ',' -f3)"
     local jitter="$(echo "$output" | cut -n -d ',' -f4)"
             
-    printf "\r${GREEN}%-7s${YELLOW}%s%s${GREEN}%s${CYAN}%s%s${CYAN}%s%s${GREEN}%s${PURPLE}%s${ENDC}\n" "${nodeType}"  "${nodeISP}" "|" "${name}" "↑ " "${upload}" "↓ " "${download}" "${latency}" "${jitter}"
+    printf "\r${GREEN}%-7s${YELLOW}%s%s${GREEN}%s${CYAN}%s%s${CYAN}%s%s${GREEN}%s${YELLOW}%s${ENDC}\n" "${nodeType}"  "${nodeISP}" "|" "${name}" "↑ " "${upload}" "↓ " "${download}" "${latency}" "${jitter}"
 }
 
 run_test() {
@@ -138,7 +138,7 @@ run_test() {
     if [[ "$thread" == "" ]]; then
         echo -ne "  单线程"
     else
-        echo -ne "  多线程"
+        echo -ne "  八线程"
     fi
 
     time=$(( $end - $start ))
