@@ -174,7 +174,7 @@ impl SpeedTest {
         let final_speed = all / 20.0;
 
         let res = if wait <= 0 {
-            if last == 0 {
+            if last < 200 {
                 format!("失败")
             }else {
                 format!("断流")
