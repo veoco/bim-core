@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::{Arc, Barrier, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -120,8 +120,10 @@ impl SpeedTest {
         };
         let ssl = if url.scheme() == "https" { true } else { false };
         let threads = if self.multi_thread { 8 } else { 1 };
-        let counter = Arc::new(Mutex::new(0u128));
+        let counter = Arc::new(RwLock::new(0u128));
         let barrier = Arc::new(Barrier::new(threads + 1));
+        let flag = Arc::new(RwLock::new(false));
+        let end = Arc::new(Barrier::new(threads + 1));
 
         for _ in 0..threads {
             let a = self.address.clone();
@@ -130,11 +132,13 @@ impl SpeedTest {
             let s = ssl.clone();
             let ct = counter.clone();
             let b = barrier.clone();
+            let f = flag.clone();
+            let e = end.clone();
 
             thread::spawn(move || {
                 let _ = match load {
-                    0 => request_http_upload(a, u, c, s, ct, b),
-                    _ => request_http_download(a, u, c, s, ct, b),
+                    0 => request_http_upload(a, u, c, s, ct, b, f, e),
+                    _ => request_http_download(a, u, c, s, ct, b, f, e),
                 };
             });
         }
@@ -153,7 +157,7 @@ impl SpeedTest {
             time_passed = now.elapsed().as_micros();
             let time_used = time_passed - last_time;
             let current = {
-                let ct = counter.lock().unwrap();
+                let ct = counter.read().unwrap();
                 *ct
             };
             if last == current {
@@ -167,6 +171,12 @@ impl SpeedTest {
             last_time = time_passed;
         }
 
+        {
+            let mut f = flag.write().unwrap();
+            *f = true;
+        }
+        end.wait();
+
         let mut all = 0.0;
         for i in index - 20..index {
             all += results[i];
@@ -176,7 +186,7 @@ impl SpeedTest {
         let res = if wait <= 0 {
             if last < 200 {
                 format!("失败")
-            }else {
+            } else {
                 format!("断流")
             }
         } else {
@@ -214,7 +224,7 @@ impl SpeedTest {
         if ping {
             thread::sleep(Duration::from_secs(1));
             let _upload = self.upload();
-            thread::sleep(Duration::from_secs(1));
+            thread::sleep(Duration::from_secs(3));
             let _download = self.download();
         }
         true

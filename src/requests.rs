@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::{Arc, Barrier, RwLock};
 use std::time::{Duration, Instant};
 
 use log::debug;
@@ -36,7 +36,7 @@ pub fn make_connection(
                     return Ok(Box::new(s));
                 }
                 Err(e) => {
-                    debug!("{e}"); 
+                    debug!("{e}");
                 }
             }
         }
@@ -65,14 +65,16 @@ pub fn request_http_download(
     url: Url,
     connection_close: bool,
     ssl: bool,
-    counter: Arc<Mutex<u128>>,
+    counter: Arc<RwLock<u128>>,
     barrier: Arc<Barrier>,
+    flag: Arc<RwLock<bool>>,
+    end: Arc<Barrier>,
 ) -> Result<bool, String> {
     let chunk_count = if connection_close {
         debug!("Enter connection close mode");
         15_000
     } else {
-        25
+        50
     };
     let data_size = chunk_count * 1024 * 1024 as u128;
     let mut data_counter = data_size;
@@ -89,14 +91,13 @@ pub fn request_http_download(
         Ok(s) => s,
         Err(e) => {
             barrier.wait();
+            end.wait();
             return Err(e);
         }
     };
 
     barrier.wait();
-    let now = Instant::now();
-    let mut time_used = 0;
-    while time_used < 14_500_000 {
+    while !*(flag.read().unwrap()) {
         if data_counter >= data_size {
             let rd = random::<f64>().to_string();
             let path_query = format!(
@@ -118,17 +119,20 @@ pub fn request_http_download(
                 }
                 Err(e) => {
                     debug!("Download Error: {}", e);
+                    end.wait();
                     return Err(String::from("连接中断"));
                 }
             }
         } else {
             let _r = stream.read_exact(&mut buffer);
-            let mut ct = counter.lock().unwrap();
-            *ct += 16384;
+            {
+                let mut ct = counter.write().unwrap();
+                *ct += 16384;
+            }
             data_counter += 16384;
         }
-        time_used = now.elapsed().as_micros();
     }
+    end.wait();
 
     Ok(true)
 }
@@ -138,14 +142,16 @@ pub fn request_http_upload(
     url: Url,
     connection_close: bool,
     ssl: bool,
-    counter: Arc<Mutex<u128>>,
+    counter: Arc<RwLock<u128>>,
     barrier: Arc<Barrier>,
+    flag: Arc<RwLock<bool>>,
+    end: Arc<Barrier>,
 ) -> Result<bool, String> {
     let chunk_count = if connection_close {
         debug!("Enter connection close mode");
         15_000
     } else {
-        25
+        50
     };
     let data_size = chunk_count * 1024 * 1024 as u128;
     let mut data_counter = data_size;
@@ -164,14 +170,13 @@ pub fn request_http_upload(
         Ok(s) => s,
         Err(e) => {
             barrier.wait();
+            end.wait();
             return Err(e);
         }
     };
-    let mut time_used = 0;
 
     barrier.wait();
-    let now = Instant::now();
-    while time_used < 14_500_000 {
+    while !*(flag.read().unwrap()) {
         if data_counter >= data_size {
             let rd = random::<f64>().to_string();
             let path_query = format!("{}?r={}", url_path, rd);
@@ -186,23 +191,29 @@ pub fn request_http_upload(
             let r = stream.write_all(&request_head);
             match r {
                 Ok(_) => {
-                    let mut ct = counter.lock().unwrap();
-                    *ct += request_head.len() as u128;
+                    {
+                        let mut ct = counter.write().unwrap();
+                        *ct += request_head.len() as u128;
+                    }
+
                     data_counter = 0;
                 }
                 Err(e) => {
                     debug!("Upload Error: {}", e);
+                    end.wait();
                     return Err(String::from("连接中断"));
                 }
             }
         } else {
             let _r = stream.write_all(&request_chunk);
-            let mut ct = counter.lock().unwrap();
-            *ct += 16384;
+            {
+                let mut ct = counter.write().unwrap();
+                *ct += 16384;
+            }
             data_counter += 16384;
         }
-        time_used = now.elapsed().as_micros();
     }
+    end.wait();
 
     Ok(true)
 }
