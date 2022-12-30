@@ -141,6 +141,7 @@ impl SpeedTest {
                     _ => request_http_download(a, u, c, s, ct, b, f, e),
                 };
             });
+            thread::sleep(Duration::from_millis(250));
         }
 
         let mut last = 0;

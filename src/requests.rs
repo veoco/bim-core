@@ -69,7 +69,7 @@ pub fn request_http_download(
     barrier: Arc<Barrier>,
     flag: Arc<RwLock<bool>>,
     end: Arc<Barrier>,
-) -> Result<bool, String> {
+){
     let chunk_count = if connection_close {
         debug!("Enter connection close mode");
         15_000
@@ -78,7 +78,7 @@ pub fn request_http_download(
     };
     let data_size = chunk_count * 1024 * 1024 as u128;
     let mut data_counter = data_size;
-    let mut buffer = [0; 16384];
+    let mut buffer = [0; 65536];
 
     let host_port = format!(
         "{}:{}",
@@ -89,10 +89,10 @@ pub fn request_http_download(
 
     let mut stream = match make_connection(&address, &url, ssl) {
         Ok(s) => s,
-        Err(e) => {
+        Err(_) => {
             barrier.wait();
             end.wait();
-            return Err(e);
+            return;
         }
     };
 
@@ -120,21 +120,19 @@ pub fn request_http_download(
                 Err(e) => {
                     debug!("Download Error: {}", e);
                     end.wait();
-                    return Err(String::from("连接中断"));
+                    return;
                 }
             }
         } else {
             let _r = stream.read_exact(&mut buffer);
             {
                 let mut ct = counter.write().unwrap();
-                *ct += 16384;
+                *ct += 65536;
             }
-            data_counter += 16384;
+            data_counter += 65536;
         }
     }
     end.wait();
-
-    Ok(true)
 }
 
 pub fn request_http_upload(
@@ -146,7 +144,7 @@ pub fn request_http_upload(
     barrier: Arc<Barrier>,
     flag: Arc<RwLock<bool>>,
     end: Arc<Barrier>,
-) -> Result<bool, String> {
+){
     let chunk_count = if connection_close {
         debug!("Enter connection close mode");
         15_000
@@ -163,15 +161,15 @@ pub fn request_http_upload(
     );
     let url_path = url.path();
     let request_chunk = "0123456789AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz-="
-        .repeat(256)
+        .repeat(1024)
         .into_bytes();
 
     let mut stream = match make_connection(&address, &url, ssl) {
         Ok(s) => s,
-        Err(e) => {
+        Err(_) => {
             barrier.wait();
             end.wait();
-            return Err(e);
+            return;
         }
     };
 
@@ -201,19 +199,17 @@ pub fn request_http_upload(
                 Err(e) => {
                     debug!("Upload Error: {}", e);
                     end.wait();
-                    return Err(String::from("连接中断"));
+                    return;
                 }
             }
         } else {
             let _r = stream.write_all(&request_chunk);
             {
                 let mut ct = counter.write().unwrap();
-                *ct += 16384;
+                *ct += 65536;
             }
-            data_counter += 16384;
+            data_counter += 65536;
         }
     }
     end.wait();
-
-    Ok(true)
 }
