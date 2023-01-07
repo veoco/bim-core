@@ -18,7 +18,7 @@ fn run(
     ipv6: bool,
     connection_close: bool,
     multi_thread: bool,
-) -> (String, String, String, String) {
+) -> (String, String, String, String, String, String) {
     let client = SpeedTest::build(
         download_url,
         upload_url,
@@ -33,6 +33,8 @@ fn run(
     }
 
     return (
+        justify_name("解析失败", 11),
+        justify_name("解析失败", 11),
         justify_name("解析失败", 11),
         justify_name("解析失败", 11),
         justify_name("未启动", 9),
@@ -73,7 +75,7 @@ fn main() {
 
     if matches.opt_present("n") {
         if let Some(name) = dl {
-            print!("{}", justify_name(name, 16));
+            print!("{}", justify_name(name, 12));
         } else {
             print_usage(&program, opts);
         }
@@ -94,7 +96,8 @@ fn main() {
     env_logger::init();
     openssl_probe::init_ssl_cert_env_vars();
 
-    let (download, upload, ping, jitter) = run(download_url, upload_url, ipv6, close, multi);
+    let (upload, upload_status, download, download_status, ping, jitter) =
+        run(download_url, upload_url, ipv6, close, multi);
 
-    println!("{download},{upload},{ping},{jitter}");
+    println!("{upload},{upload_status},{download},{download_status},{ping},{jitter}");
 }

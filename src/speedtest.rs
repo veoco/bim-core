@@ -19,7 +19,7 @@ pub struct SpeedTest {
 
     address: SocketAddr,
 
-    pub result: (String, String, String, String),
+    pub result: (String, String, String, String, String, String),
 }
 
 impl SpeedTest {
@@ -75,7 +75,14 @@ impl SpeedTest {
             connection_close,
             multi_thread,
             address,
-            result: (r.clone(), r.clone(), r.clone(), r.clone()),
+            result: (
+                r.clone(),
+                r.clone(),
+                r.clone(),
+                r.clone(),
+                r.clone(),
+                r.clone(),
+            ),
         })
     }
 
@@ -90,12 +97,12 @@ impl SpeedTest {
             if ping < ping_min {
                 ping_min = ping;
             }
-            thread::sleep(Duration::from_millis(500));
+            thread::sleep(Duration::from_millis(1000));
             count += 1;
         }
         if ping_min > 999_999 {
-            self.result.2 = String::from("失败");
-            self.result.3 = String::from("失败");
+            self.result.4 = String::from("失败");
+            self.result.5 = String::from("失败");
             return Ok(false);
         }
 
@@ -104,11 +111,11 @@ impl SpeedTest {
             jitter_all += p - ping_min;
         }
 
-        self.result.2 = format!("{:.1}", ping_min as f64 / 1_000.0);
-        self.result.3 = format!("{:.1}", jitter_all as f64 / 5_000.0);
+        self.result.4 = format!("{:.1}", ping_min as f64 / 1_000.0);
+        self.result.5 = format!("{:.1}", jitter_all as f64 / 5_000.0);
 
-        debug!("Ping {} ms", self.result.2);
-        debug!("Jitter {} ms", self.result.3);
+        debug!("Ping {} ms", self.result.4);
+        debug!("Jitter {} ms", self.result.5);
 
         Ok(true)
     }
@@ -184,19 +191,27 @@ impl SpeedTest {
         }
         let final_speed = all / 20.0;
 
-        let res = if wait <= 0 {
+        let status = if wait <= 0 {
             if last < 200 {
-                format!("失败")
+                "失败"
             } else {
-                format!("断流")
+                "断流"
             }
         } else {
-            format!("{:.1}", final_speed)
-        };
+            "正常"
+        }.to_string();
+
+        let res = format!("{:.1}", final_speed);
 
         match load {
-            0 => self.result.0 = res,
-            _ => self.result.1 = res,
+            0 => {
+                self.result.0 = res;
+                self.result.1 = status;
+            }
+            _ => {
+                self.result.2 = res;
+                self.result.3 = status;
+            }
         }
 
         Ok(true)
@@ -212,12 +227,21 @@ impl SpeedTest {
         Ok(true)
     }
 
-    pub fn get_result(&self) -> (String, String, String, String) {
-        let upload = justify_name(&self.result.0, 11);
-        let download = justify_name(&self.result.1, 11);
-        let ping = justify_name(&self.result.2, 9);
-        let jitter = justify_name(&self.result.3, 7);
-        (upload, download, ping, jitter)
+    pub fn get_result(&self) -> (String, String, String, String, String, String) {
+        let upload = justify_name(&self.result.0, 8);
+        let upload_status = justify_name(&self.result.1, 5);
+        let download = justify_name(&self.result.2, 8);
+        let download_status = justify_name(&self.result.3, 5);
+        let ping = justify_name(&self.result.4, 10);
+        let jitter = justify_name(&self.result.5, 8);
+        (
+            upload,
+            upload_status,
+            download,
+            download_status,
+            ping,
+            jitter,
+        )
     }
 
     pub fn run(&mut self) -> bool {
