@@ -26,11 +26,11 @@ check_bimc() {
 }
 
 print_info() {
-    echo "————————————————————————— HyperSpeed ———————————————————————————"
-    echo "       bash <(wget -qO- https://bench.im/hyperspeed)"
-    echo "       项目修改自: https://github.com/zq/superspeed/"
-    echo "  节点更新: 2022/11/15 | 组件更新: 2023/1/7 | 组件版本: 0.11.0"
-    echo "————————————————————————————————————————————————————————————————"
+    echo "——————————————————————————— HyperSpeed —————————————————————————————"
+    echo "         bash <(wget -qO- https://bench.im/hyperspeed)"
+    echo "         项目修改自: https://github.com/zq/superspeed/"
+    echo "    节点更新: 2022/11/15 | 组件更新: 2023/1/8 | 组件版本: 0.11.1"
+    echo "————————————————————————————————————————————————————————————————————"
 }
 
 
@@ -77,14 +77,15 @@ speed_test(){
     local latency="$(echo "$output" | cut -n -d ',' -f5)"
     local jitter="$(echo "$output" | cut -n -d ',' -f6)"
             
-    printf "${YELLOW}${nodeISP}|${GREEN}${name}${CYAN}↑ ${uploadStatus}${GREEN}${upload}${CYAN}↓ ${downloadStatus}${GREEN}${download}${YELLOW}${latency}${YELLOW}${jitter}${ENDC}\n"
+    printf "${YELLOW}${nodeISP}|${GREEN}${name}${CYAN}↑${upload}${YELLOW}${uploadStatus}${CYAN} ↓${download}${YELLOW}${downloadStatus}${CYAN} ↕ ${GREEN}${latency}${CYAN} ϟ ${GREEN}${jitter}${ENDC}\n"
 }
 
 run_test() {
     [[ ${selection} == 2 ]] && exit 1
 
-    echo "————————————————————————————————————————————————————————————————"
-    echo "测速服务器信息   上传/Mbps      下载/Mbps      延迟/ms   抖动/ms"
+    echo "————————————————————————————————————————————————————————————————————"
+    echo "测速服务器信息   ↑     上传/Mbps ↓     下载/Mbps ↕ 延迟/ms ϟ 抖动/ms"
+    echo "————————————————————————————————————————————————————————————————————"
     start=$(date +%s) 
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 3 ]]; then
@@ -132,7 +133,7 @@ run_test() {
     fi
 
     end=$(date +%s)
-    echo -e "\r——————————————————————————————————————————————————————————————————————"
+    echo "————————————————————————————————————————————————————————————————————"
 
     if [[ "$thread" == "" ]]; then
         echo -ne "  单线程"
