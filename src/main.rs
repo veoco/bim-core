@@ -33,12 +33,12 @@ fn run(
     }
 
     return (
-        justify_name("解析失败", 11),
-        justify_name("解析失败", 11),
-        justify_name("解析失败", 11),
-        justify_name("解析失败", 11),
-        justify_name("未启动", 9),
-        justify_name("未启动", 7),
+        justify_name("解析失败", 9, false),
+        justify_name("失败", 5, false),
+        justify_name("解析失败", 9, false),
+        justify_name("失败", 5, false),
+        justify_name("未启动",7, false),
+        justify_name("未启动", 7, false),
     );
 }
 
@@ -75,7 +75,7 @@ fn main() {
 
     if matches.opt_present("n") {
         if let Some(name) = dl {
-            print!("{}", justify_name(name, 12));
+            print!("{}", justify_name(name, 12, true));
         } else {
             print_usage(&program, opts);
         }

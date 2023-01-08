@@ -67,7 +67,7 @@ impl SpeedTest {
         };
         debug!("IP address {address}");
 
-        let r = String::from("未启动");
+        let r = String::from("取消");
         Some(SpeedTest {
             download_url,
             upload_url,
@@ -228,12 +228,12 @@ impl SpeedTest {
     }
 
     pub fn get_result(&self) -> (String, String, String, String, String, String) {
-        let upload = justify_name(&self.result.0, 8);
-        let upload_status = justify_name(&self.result.1, 5);
-        let download = justify_name(&self.result.2, 8);
-        let download_status = justify_name(&self.result.3, 5);
-        let ping = justify_name(&self.result.4, 10);
-        let jitter = justify_name(&self.result.5, 8);
+        let upload = justify_name(&self.result.0, 9, false);
+        let upload_status = justify_name(&self.result.1, 5, false);
+        let download = justify_name(&self.result.2, 9, false);
+        let download_status = justify_name(&self.result.3, 5, false);
+        let ping = justify_name(&self.result.4, 7, false);
+        let jitter = justify_name(&self.result.5, 7, false);
         (
             upload,
             upload_status,
