@@ -29,11 +29,9 @@ print_info() {
     echo "——————————————————————————— HyperSpeed —————————————————————————————"
     echo "         bash <(wget -qO- https://bench.im/hyperspeed)"
     echo "         项目修改自: https://github.com/zq/superspeed/"
-    echo "    节点更新: 2022/11/15 | 组件更新: 2023/1/8 | 组件版本: 0.11.1"
+    echo "    节点更新: 2023/1/17 | 组件更新: 2023/1/8 | 组件版本: 0.11.1"
     echo "————————————————————————————————————————————————————————————————————"
 }
-
-
 
 get_options() {
     echo -e "  测速类型:    ${GREEN}1.${ENDC} 三网测速    ${GREEN}2.${ENDC} 取消测速    ${GREEN}0.${ENDC} 港澳台日韩"
@@ -59,7 +57,6 @@ get_options() {
         fi
     done
 }
-
 
 speed_test(){
     local nodeLocation=$1
@@ -90,22 +87,27 @@ run_test() {
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 3 ]]; then
         speed_test '上海' '电信' '' 'aHR0cDovL3NwZWVkdGVzdDEub25saW5lLnNoLmNuOjgwODAvZG93bmxvYWQK' 'aHR0cDovL3NwZWVkdGVzdDEub25saW5lLnNoLmNuOjgwODAvdXBsb2FkCg=='
+        speed_test '江苏镇江5G' '电信' '' 'aHR0cDovLzVnemhlbmppYW5nLnNwZWVkdGVzdC5qc2luZm8ubmV0OjgwODAvZG93bmxvYWQ=' 'aHR0cDovLzVnemhlbmppYW5nLnNwZWVkdGVzdC5qc2luZm8ubmV0OjgwODAvdXBsb2Fk'
+        speed_test '江苏南京5G' '电信' '' 'aHR0cDovLzVnbmFuamluZy5zcGVlZHRlc3QuanNpbmZvLm5ldDo4MDgwL2Rvd25sb2FkCg==' 'aHR0cDovLzVnbmFuamluZy5zcGVlZHRlc3QuanNpbmZvLm5ldDo4MDgwL3VwbG9hZAo='
+        speed_test '安徽合肥5G' '电信' '' 'aHR0cDovL3NwZWVkdGVzdDEuYWgxNjMuY29tOjgwODAvZG93bmxvYWQ=' 'aHR0cDovL3NwZWVkdGVzdDEuYWgxNjMuY29tOjgwODAvdXBsb2Fk'
         speed_test '天津5G' '电信' '' 'aHR0cDovL3N5LnRqdGVsZS5jb206ODA4MC9kb3dubG9hZA==' 'aHR0cDovL3N5LnRqdGVsZS5jb206ODA4MC91cGxvYWQ='
+        speed_test '天津' '电信' '' 'aHR0cDovL3RqcmF0ZS50anRlbGUuY29tOjgwODAvZG93bmxvYWQ=' 'aHR0cDovL3RqcmF0ZS50anRlbGUuY29tOjgwODAvdXBsb2Fk'
         speed_test '重庆5G' '电信' '' 'aHR0cDovL3NwZWVkLmNxdGVsZWNvbS5jb20uY246ODA4MC9kb3dubG9hZA==' 'aHR0cDovL3NwZWVkLmNxdGVsZWNvbS5jb20uY246ODA4MC91cGxvYWQ='
         speed_test '湖北武汉' '电信' '' 'aHR0cDovL3ZpcHNwZWVkdGVzdDEud3VoYW4ubmV0LmNuOjgwODAvZG93bmxvYWQ=' 'aHR0cDovL3ZpcHNwZWVkdGVzdDEud3VoYW4ubmV0LmNuOjgwODAvdXBsb2Fk'
-        speed_test '江苏南京5G' '电信' '' 'aHR0cDovLzVnbmFuamluZy5zcGVlZHRlc3QuanNpbmZvLm5ldDo4MDgwL2Rvd25sb2FkCg==' 'aHR0cDovLzVnbmFuamluZy5zcGVlZHRlc3QuanNpbmZvLm5ldDo4MDgwL3VwbG9hZAo='
     fi
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 4 ]]; then
         speed_test '上海5G' '联通' '' 'aHR0cDovLzVnLnNodW5pY29tdGVzdC5jb206ODA4MC9kb3dubG9hZAo=' 'aHR0cDovLzVnLnNodW5pY29tdGVzdC5jb206ODA4MC91cGxvYWQK'
+        speed_test '江苏无锡' '联通' '' 'aHR0cHM6Ly9zcGVlZHRlc3QyLm5pdXRrLmNvbTo4MDgwL2Rvd25sb2Fk' 'aHR0cHM6Ly9zcGVlZHRlc3QyLm5pdXRrLmNvbTo4MDgwL3VwbG9hZA=='
+        speed_test '江西南昌' '联通' '' 'aHR0cDovL3NwZWVkdGVzdC5qeHVuaWNvbS5jb206ODA4MC9kb3dubG9hZA==' 'aHR0cDovL3NwZWVkdGVzdC5qeHVuaWNvbS5jb206ODA4MC91cGxvYWQ='
         speed_test '河南郑州5G' '联通' '' 'aHR0cDovLzVndGVzdC5zaGFuZ2R1LmNvbTo4MDgwL2Rvd25sb2Fk' 'aHR0cDovLzVndGVzdC5zaGFuZ2R1LmNvbTo4MDgwL3VwbG9hZA=='
         speed_test '湖南长沙5G' '联通' '' 'aHR0cDovL3NwZWVkdGVzdDAxLmhuMTY1LmNvbTo4MDgwL2Rvd25sb2Fk' 'aHR0cDovL3NwZWVkdGVzdDAxLmhuMTY1LmNvbTo4MDgwL3VwbG9hZA=='
         speed_test '辽宁沈阳' '联通' '' 'aHR0cDovL3VuaWNvbXNwZWVkdGVzdC5jb206ODA4MC9kb3dubG9hZAo=' 'aHR0cDovL3VuaWNvbXNwZWVkdGVzdC5jb206ODA4MC91cGxvYWQK'
-        speed_test '江苏无锡' '联通' '' 'aHR0cHM6Ly9zcGVlZHRlc3QyLm5pdXRrLmNvbTo4MDgwL2Rvd25sb2Fk' 'aHR0cHM6Ly9zcGVlZHRlc3QyLm5pdXRrLmNvbTo4MDgwL3VwbG9hZA=='
     fi
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 5 ]]; then
         speed_test '北京' '移动' '' 'aHR0cDovLzIxMS4xMzYuMzAuMTE0OjkwMDAvc3BlZWQvMjAwMDAwMC5kYXRhCg==' 'aHR0cDovLzIxMS4xMzYuMzAuMTE0OjkwMDAvc3BlZWQvMjAwMDAwLmRhdGEK'
+        speed_test '浙江杭州5G' '移动' '' 'aHR0cDovL3NwZWVkdGVzdC4xMzlwbGF5LmNvbTo4MDgwL2Rvd25sb2Fk' 'aHR0cDovL3NwZWVkdGVzdC4xMzlwbGF5LmNvbTo4MDgwL3VwbG9hZA=='
         speed_test '河南郑州5G' '移动' '' 'aHR0cDovL3NwZWVkdGVzdC5lYXN0Y29tLnNpdGU6ODA4MC9kb3dubG9hZA==' 'aHR0cDovL3NwZWVkdGVzdC5lYXN0Y29tLnNpdGU6ODA4MC91cGxvYWQ='
         speed_test '陕西西安5G' '移动' '' 'aHR0cDovL3NwZWVkdGVzdC5vbmUtcHVuY2gud2luOjgwODAvZG93bmxvYWQ=' 'aHR0cDovL3NwZWVkdGVzdC5vbmUtcHVuY2gud2luOjgwODAvdXBsb2Fk'
         speed_test '四川成都' '移动' '' 'aHR0cDovL3NwZWVkdGVzdDEuc2MuY2hpbmFtb2JpbGUuY29tOjgwODAvZG93bmxvYWQ=' 'aHR0cDovL3NwZWVkdGVzdDEuc2MuY2hpbmFtb2JpbGUuY29tOjgwODAvdXBsb2Fk'
