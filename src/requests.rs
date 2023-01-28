@@ -1,13 +1,12 @@
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::{Arc, Barrier, RwLock};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 #[cfg(debug_assertions)]
 use log::debug;
 
 use native_tls::{TlsConnector, TlsStream};
-use rand::prelude::*;
 use url::Url;
 
 pub trait GenericStream: Read + Write {}
@@ -24,7 +23,6 @@ pub fn make_connection(
     let mut retry = 3;
     while retry > 0 {
         if let Ok(stream) = TcpStream::connect_timeout(&address, Duration::from_micros(3_000_000)) {
-
             #[cfg(debug_assertions)]
             debug!("TCP connected");
 
@@ -111,10 +109,13 @@ pub fn request_http_download(
     barrier.wait();
     while !*(flag.read().unwrap()) {
         if data_counter >= data_size {
-            let rd = random::<f64>().to_string();
+            let now = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
             let path_query = format!(
                 "{}?cors=true&r={}&ckSize={}&size={}",
-                path_str, rd, chunk_count, data_size
+                path_str, now, chunk_count, data_size
             );
 
             #[cfg(debug_assertions)]
@@ -194,8 +195,11 @@ pub fn request_http_upload(
     barrier.wait();
     while !*(flag.read().unwrap()) {
         if data_counter >= data_size {
-            let rd = random::<f64>().to_string();
-            let path_query = format!("{}?r={}", url_path, rd);
+            let now = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
+            let path_query = format!("{}?r={}", url_path, now);
 
             #[cfg(debug_assertions)]
             debug!("Upload {path_query} size {data_size}");

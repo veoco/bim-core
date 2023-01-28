@@ -7,11 +7,11 @@ edition = "2021"
 
 [dependencies]
 url = "2"
-log = "0.4"
-rand = "0.8"
 getopts = "0.2"
-env_logger = "0.9"
 native-tls = { version = "0.2", features = ["vendored"] }
+
+log = "0.4"
+env_logger = "0.9"
 
 [profile.release]
 strip = true
