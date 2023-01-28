@@ -3,7 +3,9 @@ use std::net::{SocketAddr, TcpStream};
 use std::sync::{Arc, Barrier, RwLock};
 use std::time::{Duration, Instant};
 
+#[cfg(debug_assertions)]
 use log::debug;
+
 use native_tls::{TlsConnector, TlsStream};
 use rand::prelude::*;
 use url::Url;
@@ -22,7 +24,10 @@ pub fn make_connection(
     let mut retry = 3;
     while retry > 0 {
         if let Ok(stream) = TcpStream::connect_timeout(&address, Duration::from_micros(3_000_000)) {
+
+            #[cfg(debug_assertions)]
             debug!("TCP connected");
+
             let _r = stream.set_write_timeout(Some(Duration::from_secs(3)));
             let _r = stream.set_read_timeout(Some(Duration::from_secs(3)));
             if !ssl {
@@ -32,11 +37,14 @@ pub fn make_connection(
             let connector = TlsConnector::new().unwrap();
             match connector.connect(url.host_str().unwrap(), stream) {
                 Ok(s) => {
+                    #[cfg(debug_assertions)]
                     debug!("SSL connected");
+
                     return Ok(Box::new(s));
                 }
-                Err(e) => {
-                    debug!("{e}");
+                Err(_e) => {
+                    #[cfg(debug_assertions)]
+                    debug!("{_e}");
                 }
             }
         }
@@ -52,8 +60,10 @@ pub fn request_tcp_ping(address: &SocketAddr) -> Result<u128, String> {
     let used = now.elapsed().as_micros();
     let used = match r {
         Ok(_) => used,
-        Err(e) => {
-            debug!("Ping {e}");
+        Err(_e) => {
+            #[cfg(debug_assertions)]
+            debug!("Ping {_e}");
+
             1_000_000
         }
     };
@@ -69,9 +79,11 @@ pub fn request_http_download(
     barrier: Arc<Barrier>,
     flag: Arc<RwLock<bool>>,
     end: Arc<Barrier>,
-){
+) {
     let chunk_count = if connection_close {
+        #[cfg(debug_assertions)]
         debug!("Enter connection close mode");
+
         15_000
     } else {
         50
@@ -104,6 +116,8 @@ pub fn request_http_download(
                 "{}?cors=true&r={}&ckSize={}&size={}",
                 path_str, rd, chunk_count, data_size
             );
+
+            #[cfg(debug_assertions)]
             debug!("Download {path_query}");
 
             let request_head = format!(
@@ -117,8 +131,10 @@ pub fn request_http_download(
                 Ok(_) => {
                     data_counter = 0;
                 }
-                Err(e) => {
-                    debug!("Download Error: {}", e);
+                Err(_e) => {
+                    #[cfg(debug_assertions)]
+                    debug!("Download Error: {}", _e);
+
                     end.wait();
                     return;
                 }
@@ -144,9 +160,11 @@ pub fn request_http_upload(
     barrier: Arc<Barrier>,
     flag: Arc<RwLock<bool>>,
     end: Arc<Barrier>,
-){
+) {
     let chunk_count = if connection_close {
+        #[cfg(debug_assertions)]
         debug!("Enter connection close mode");
+
         15_000
     } else {
         50
@@ -178,6 +196,8 @@ pub fn request_http_upload(
         if data_counter >= data_size {
             let rd = random::<f64>().to_string();
             let path_query = format!("{}?r={}", url_path, rd);
+
+            #[cfg(debug_assertions)]
             debug!("Upload {path_query} size {data_size}");
 
             let request_head = format!(
@@ -196,8 +216,10 @@ pub fn request_http_upload(
 
                     data_counter = 0;
                 }
-                Err(e) => {
-                    debug!("Upload Error: {}", e);
+                Err(_e) => {
+                    #[cfg(debug_assertions)]
+                    debug!("Upload Error: {}", _e);
+
                     end.wait();
                     return;
                 }

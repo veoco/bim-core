@@ -93,6 +93,7 @@ fn main() {
     let close = matches.opt_present("c");
     let multi = matches.opt_present("m");
 
+    #[cfg(debug_assertions)]
     env_logger::init();
 
     let (upload, upload_status, download, download_status, ping, jitter) =

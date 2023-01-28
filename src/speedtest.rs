@@ -4,7 +4,9 @@ use std::sync::{Arc, Barrier, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
+#[cfg(debug_assertions)]
 use log::debug;
+
 use url::Url;
 
 use crate::requests::{request_http_download, request_http_upload, request_tcp_ping};
@@ -65,6 +67,8 @@ impl SpeedTest {
             Some(addr) => addr,
             None => return None,
         };
+
+        #[cfg(debug_assertions)]
         debug!("IP address {address}");
 
         let r = String::from("取消");
@@ -114,7 +118,10 @@ impl SpeedTest {
         self.result.4 = format!("{:.1}", ping_min as f64 / 1_000.0);
         self.result.5 = format!("{:.1}", jitter_all as f64 / 5_000.0);
 
+        #[cfg(debug_assertions)]
         debug!("Ping {} ms", self.result.4);
+
+        #[cfg(debug_assertions)]
         debug!("Jitter {} ms", self.result.5);
 
         Ok(true)
@@ -172,7 +179,10 @@ impl SpeedTest {
                 wait -= 1;
             }
             let speed = ((current - last) * 8) as f64 / time_used as f64;
+            
+            #[cfg(debug_assertions)]
             debug!("Transfered {current} bytes in {time_passed} us, speed {speed}");
+
             results[index] = speed;
             index += 1;
             last = current;
@@ -199,7 +209,8 @@ impl SpeedTest {
             }
         } else {
             "正常"
-        }.to_string();
+        }
+        .to_string();
 
         let res = format!("{:.1}", final_speed);
 
