@@ -94,7 +94,6 @@ fn main() {
     let multi = matches.opt_present("m");
 
     env_logger::init();
-    openssl_probe::init_ssl_cert_env_vars();
 
     let (upload, upload_status, download, download_status, ping, jitter) =
         run(download_url, upload_url, ipv6, close, multi);

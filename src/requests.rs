@@ -4,13 +4,13 @@ use std::sync::{Arc, Barrier, RwLock};
 use std::time::{Duration, Instant};
 
 use log::debug;
-use openssl::ssl::{SslConnector, SslMethod, SslStream};
+use native_tls::{TlsConnector, TlsStream};
 use rand::prelude::*;
 use url::Url;
 
 pub trait GenericStream: Read + Write {}
 
-impl<S: Read + Write> GenericStream for SslStream<S> {}
+impl<S: Read + Write> GenericStream for TlsStream<S> {}
 
 impl GenericStream for TcpStream {}
 
@@ -29,7 +29,7 @@ pub fn make_connection(
                 return Ok(Box::new(stream));
             }
 
-            let connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
+            let connector = TlsConnector::new().unwrap();
             match connector.connect(url.host_str().unwrap(), stream) {
                 Ok(s) => {
                     debug!("SSL connected");
