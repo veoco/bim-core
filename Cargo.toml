@@ -8,7 +8,8 @@ edition = "2021"
 [dependencies]
 url = "2"
 getopts = "0.2"
-native-tls = { version = "0.2", features = ["vendored"] }
+webpki-roots = "0.22"
+rustls = "0.20"
 
 log = "0.4"
 env_logger = "0.9"

@@ -6,14 +6,12 @@ use std::time::{Duration, Instant, SystemTime};
 #[cfg(debug_assertions)]
 use log::debug;
 
-use native_tls::{TlsConnector, TlsStream};
+use rustls::{OwnedTrustAnchor, RootCertStore};
 use url::Url;
 
 pub trait GenericStream: Read + Write {}
 
-impl<S: Read + Write> GenericStream for TlsStream<S> {}
-
-impl GenericStream for TcpStream {}
+impl<T: Read + Write> GenericStream for T {}
 
 pub fn make_connection(
     address: &SocketAddr,
@@ -32,19 +30,29 @@ pub fn make_connection(
                 return Ok(Box::new(stream));
             }
 
-            let connector = TlsConnector::new().unwrap();
-            match connector.connect(url.host_str().unwrap(), stream) {
-                Ok(s) => {
-                    #[cfg(debug_assertions)]
-                    debug!("SSL connected");
+            let mut root_store = RootCertStore::empty();
+            root_store.add_server_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.0.iter().map(
+                |ta| {
+                    OwnedTrustAnchor::from_subject_spki_name_constraints(
+                        ta.subject,
+                        ta.spki,
+                        ta.name_constraints,
+                    )
+                },
+            ));
+            let config = rustls::ClientConfig::builder()
+                .with_safe_defaults()
+                .with_root_certificates(root_store)
+                .with_no_client_auth();
 
-                    return Ok(Box::new(s));
-                }
-                Err(_e) => {
-                    #[cfg(debug_assertions)]
-                    debug!("{_e}");
-                }
-            }
+            let server_name = url.host_str().unwrap().try_into().unwrap();
+            let conn = rustls::ClientConnection::new(Arc::new(config), server_name).unwrap();
+            let tls = rustls::StreamOwned::new(conn, stream);
+
+            #[cfg(debug_assertions)]
+            debug!("SSL connected");
+
+            return Ok(Box::new(tls));
         }
 
         retry -= 1;
