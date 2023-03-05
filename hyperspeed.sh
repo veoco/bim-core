@@ -124,6 +124,10 @@ run_test() {
         speed_test '中国科技大学' '合肥' '-6' 'aHR0cHM6Ly90ZXN0Ni51c3RjLmVkdS5jbi9iYWNrZW5kL2dhcmJhZ2UucGhwCg==' 'aHR0cHM6Ly90ZXN0Ni51c3RjLmVkdS5jbi9iYWNrZW5kL2VtcHR5LnBocAo='
         speed_test '东北大学' '沈阳' '-6' 'aHR0cHM6Ly9pcHR2LnRzaW5naHVhLmVkdS5jbi9zdC9nYXJiYWdlLnBocAo=' 'aHR0cHM6Ly9pcHR2LnRzaW5naHVhLmVkdS5jbi9zdC9lbXB0eS5waHAK'
         speed_test '上海交通大学' '上海' '-6' 'aHR0cHM6Ly93c3VzLnNqdHUuZWR1LmNuL3NwZWVkdGVzdC9iYWNrZW5kL2dhcmJhZ2UucGhwCg==' 'aHR0cHM6Ly93c3VzLnNqdHUuZWR1LmNuL3NwZWVkdGVzdC9iYWNrZW5kL2VtcHR5LnBocAo='
+        speed_test '四川成都' '电信' '-6' 'aHR0cDovL1syNDBlOjE2OjEwMDE6MTUwOjozXTo4MDgwL2Rvd25sb2Fk' 'aHR0cDovL1syNDBlOjE2OjEwMDE6MTUwOjozXTo4MDgwL3VwbG9hZA=='
+        speed_test '甘肃' '电信' '-6' 'aHR0cDovL1syNDBlOjJhOjE6ZmYwMDo6Ml06ODA4MC9kb3dubG9hZA==' 'aHR0cDovL1syNDBlOjJhOjE6ZmYwMDo6Ml06ODA4MC91cGxvYWQ='
+        speed_test '上海5G' '联通' '-6' 'aHR0cDovL1syNDA4OjgwMDA6OTAwMDoyMGU2Ojo1ZGRdOjgwODAvZG93bmxvYWQ=' 'aHR0cDovL1syNDA4OjgwMDA6OTAwMDoyMGU2Ojo1ZGRdOjgwODAvdXBsb2Fk'
+        speed_test '北京' '移动' '-6' 'aHR0cDovL1syNDA5OjgwODc6MDoyMDoyMDo6MTJdOjgwODAvZG93bmxvYWQ=' 'aHR0cDovL1syNDA5OjgwODc6MDoyMDoyMDo6MTJdOjgwODAvdXBsb2Fk'
     fi
 
     if [[ ${selection} == 0 ]]; then
