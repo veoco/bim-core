@@ -135,8 +135,7 @@ pub fn request_http_download(
             )
             .into_bytes();
 
-            let r = stream.write_all(&request_head);
-            match r {
+            match stream.write_all(&request_head) {
                 Ok(_) => {
                     data_counter = 0;
                 }
@@ -149,12 +148,22 @@ pub fn request_http_download(
                 }
             }
         } else {
-            let _r = stream.read_exact(&mut buffer);
-            {
-                let mut ct = counter.write().unwrap();
-                *ct += 65536;
+            match stream.read_exact(&mut buffer) {
+                Ok(_) => {
+                    {
+                        let mut ct = counter.write().unwrap();
+                        *ct += 65536;
+                    }
+                    data_counter += 65536;
+                }
+                Err(e) => {
+                    #[cfg(debug_assertions)]
+                    debug!("Download Error: {}", _e);
+
+                    end.wait();
+                    return;
+                }
             }
-            data_counter += 65536;
         }
     }
     end.wait();
@@ -218,8 +227,7 @@ pub fn request_http_upload(
             )
             .into_bytes();
 
-            let r = stream.write_all(&request_head);
-            match r {
+            match stream.write_all(&request_head) {
                 Ok(_) => {
                     {
                         let mut ct = counter.write().unwrap();
@@ -228,21 +236,31 @@ pub fn request_http_upload(
 
                     data_counter = 0;
                 }
-                Err(_e) => {
+                Err(e) => {
                     #[cfg(debug_assertions)]
-                    debug!("Upload Error: {}", _e);
+                    debug!("Upload Error: {}", e);
 
                     end.wait();
                     return;
                 }
             }
         } else {
-            let _r = stream.write_all(&request_chunk);
-            {
-                let mut ct = counter.write().unwrap();
-                *ct += 65536;
+            match stream.write_all(&request_chunk) {
+                Ok(_) => {
+                    {
+                        let mut ct = counter.write().unwrap();
+                        *ct += 65536;
+                    }
+                    data_counter += 65536;
+                }
+                Err(e) => {
+                    #[cfg(debug_assertions)]
+                    debug!("Upload Error: {}", e);
+
+                    end.wait();
+                    return;
+                }
             }
-            data_counter += 65536;
         }
     }
     end.wait();
