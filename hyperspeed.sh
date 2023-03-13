@@ -17,9 +17,6 @@ check_bimc() {
     if  [ ! -e './bimc' ]; then
         echo "正在获取组件"
         arch=$(uname -m)
-        if [ "${arch}" == "i686" ]; then
-            arch="i586"
-        fi
         wget --no-check-certificate -qO bimc https://bench.im/bimc-$arch > /dev/null 2>&1
         chmod +x bimc
     fi
@@ -29,7 +26,7 @@ print_info() {
     echo "——————————————————————————— HyperSpeed —————————————————————————————"
     echo "         bash <(wget -qO- https://bench.im/hyperspeed)"
     echo "         项目修改自: https://github.com/zq/superspeed/"
-    echo "    节点更新: 2023/3/5 | 组件更新: 2023/1/29 | 组件版本: 0.12.0"
+    echo "    节点更新: 2023/3/5 | 组件更新: 2023/3/13 | 组件版本: 0.13.0"
     echo "————————————————————————————————————————————————————————————————————"
 }
 
