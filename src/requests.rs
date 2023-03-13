@@ -156,7 +156,7 @@ pub fn request_http_download(
                     }
                     data_counter += 65536;
                 }
-                Err(e) => {
+                Err(_e) => {
                     #[cfg(debug_assertions)]
                     debug!("Download Error: {}", _e);
 
@@ -236,9 +236,9 @@ pub fn request_http_upload(
 
                     data_counter = 0;
                 }
-                Err(e) => {
+                Err(_e) => {
                     #[cfg(debug_assertions)]
-                    debug!("Upload Error: {}", e);
+                    debug!("Upload Error: {}", _e);
 
                     end.wait();
                     return;
@@ -253,9 +253,9 @@ pub fn request_http_upload(
                     }
                     data_counter += 65536;
                 }
-                Err(e) => {
+                Err(_e) => {
                     #[cfg(debug_assertions)]
-                    debug!("Upload Error: {}", e);
+                    debug!("Upload Error: {}", _e);
 
                     end.wait();
                     return;
