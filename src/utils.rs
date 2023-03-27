@@ -39,7 +39,7 @@ const WIDTH: [(u32, u8); 38] = [
     (1114109, 1),
 ];
 
-pub fn get_width(o: u32) -> u8 {
+fn get_width(o: u32) -> u8 {
     if o == 0xE || o == 0xF {
         return 0;
     }
@@ -66,11 +66,51 @@ pub fn justify_name(name: &str, length: u8, left_right: bool) -> String {
     if name_width < length {
         let space_count = length - name_width;
         let spaces = " ".repeat(space_count as usize);
-        if left_right{
+        if left_right {
             justified_name += spaces.as_str();
-        }else{
+        } else {
             justified_name = spaces + &justified_name;
         }
     }
     justified_name
+}
+
+pub struct SpeedTestResult {
+    upload: f64,
+    upload_status: String,
+    download: f64,
+    download_status: String,
+    latency: f64,
+    jitter: f64,
+}
+
+impl SpeedTestResult {
+    pub fn build(
+        upload: f64,
+        upload_status: String,
+        download: f64,
+        download_status: String,
+        latency: f64,
+        jitter: f64,
+    ) -> SpeedTestResult {
+        return SpeedTestResult {
+            upload,
+            upload_status,
+            download,
+            download_status,
+            latency,
+            jitter,
+        };
+    }
+
+    pub fn text(&self) -> String {
+        let upload = justify_name(&format!("{:.1}", &self.upload), 9, false);
+        let upload_status = justify_name(&self.upload_status, 5, false);
+        let download = justify_name(&format!("{:.1}", &self.download), 9, false);
+        let download_status = justify_name(&self.download_status, 5, false);
+        let latency = justify_name(&format!("{:.1}", &self.latency), 7, false);
+        let jitter = justify_name(&format!("{:.1}", &self.jitter), 7, false);
+
+        format!("{upload},{upload_status},{download},{download_status},{latency},{jitter}")
+    }
 }

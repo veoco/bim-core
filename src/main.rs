@@ -1,11 +1,8 @@
 use getopts::Options;
 use std::env;
 
-mod requests;
-mod speedtest;
-mod utils;
-use speedtest::SpeedTest;
-use utils::justify_name;
+use bimc::clients::{Client, GeneralClient};
+use bimc::utils::{justify_name, SpeedTestResult};
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} DOWNLOAD_URL UPLOAD_URL [options]", program);
@@ -16,30 +13,16 @@ fn run(
     download_url: String,
     upload_url: String,
     ipv6: bool,
-    connection_close: bool,
     multi_thread: bool,
-) -> (String, String, String, String, String, String) {
-    let client = SpeedTest::build(
-        download_url,
-        upload_url,
-        ipv6,
-        connection_close,
-        multi_thread,
-    );
+) -> SpeedTestResult {
+    let client = GeneralClient::build(download_url, upload_url, ipv6, multi_thread);
 
     if let Some(mut c) = client {
         let _ = c.run();
-        return c.get_result();
+        return c.result();
     }
 
-    return (
-        justify_name("解析失败", 9, false),
-        justify_name("失败", 5, false),
-        justify_name("解析失败", 9, false),
-        justify_name("失败", 5, false),
-        justify_name("未启动",7, false),
-        justify_name("未启动", 7, false),
-    );
+    SpeedTestResult::build(0.0, "失败".to_string(), 0.0, "失败".to_string(), 0.0, 0.0)
 }
 
 fn main() {
@@ -48,7 +31,6 @@ fn main() {
 
     let mut opts = Options::new();
     opts.optflag("6", "ipv6", "enable ipv6");
-    opts.optflag("c", "close", "enable connection close mode");
     opts.optflag("m", "multi", "enable multi thread");
     opts.optflag("n", "name", "print justified name");
     opts.optflag("h", "help", "print this help menu");
@@ -90,14 +72,12 @@ fn main() {
     let download_url = dl.unwrap().clone();
     let upload_url = ul.unwrap().clone();
     let ipv6 = matches.opt_present("6");
-    let close = matches.opt_present("c");
     let multi = matches.opt_present("m");
 
     #[cfg(debug_assertions)]
     env_logger::init();
 
-    let (upload, upload_status, download, download_status, ping, jitter) =
-        run(download_url, upload_url, ipv6, close, multi);
+    let r = run(download_url, upload_url, ipv6, multi);
 
-    println!("{upload},{upload_status},{download},{download_status},{ping},{jitter}");
+    println!("{}", r.text());
 }
