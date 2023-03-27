@@ -16,11 +16,10 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::time::SystemTime;
 
-pub struct GeneralClient {
-    pub download_url: Url,
-    pub upload_url: Url,
-    pub ipv6: bool,
-    pub multi_thread: bool,
+pub struct HTTPClient {
+    download_url: Url,
+    upload_url: Url,
+    multi_thread: bool,
 
     address: SocketAddr,
 
@@ -32,7 +31,7 @@ pub struct GeneralClient {
     jitter: f64,
 }
 
-impl GeneralClient {
+impl HTTPClient {
     fn run_load(&mut self, load: u8) -> Result<bool, Box<dyn Error>> {
         let url = match load {
             0 => self.upload_url.clone(),
@@ -139,8 +138,8 @@ impl GeneralClient {
     }
 }
 
-impl Client for GeneralClient {
-    type ReadyClient = GeneralClient;
+impl Client for HTTPClient {
+    type ReadyClient = HTTPClient;
 
     fn build(
         download_url: String,
@@ -188,10 +187,9 @@ impl Client for GeneralClient {
         debug!("IP address {address}");
 
         let r = String::from("取消");
-        Some(GeneralClient {
+        Some(Self::ReadyClient {
             download_url,
             upload_url,
-            ipv6,
             multi_thread,
             address,
             upload: 0.0,

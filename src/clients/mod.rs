@@ -1,5 +1,5 @@
 mod base;
-mod general;
+mod http;
 
 pub use base::Client;
-pub use general::GeneralClient;
+pub use http::HTTPClient;

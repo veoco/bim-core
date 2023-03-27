@@ -1,7 +1,7 @@
 use getopts::Options;
 use std::env;
 
-use bimc::clients::{Client, GeneralClient};
+use bimc::clients::{Client, HTTPClient};
 use bimc::utils::{justify_name, SpeedTestResult};
 
 fn print_usage(program: &str, opts: Options) {
@@ -15,7 +15,7 @@ fn run(
     ipv6: bool,
     multi_thread: bool,
 ) -> SpeedTestResult {
-    let client = GeneralClient::build(download_url, upload_url, ipv6, multi_thread);
+    let client = HTTPClient::build(download_url, upload_url, ipv6, multi_thread);
 
     if let Some(mut c) = client {
         let _ = c.run();
