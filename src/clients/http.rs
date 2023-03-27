@@ -453,7 +453,7 @@ fn request_http_upload(
                     #[cfg(debug_assertions)]
                     debug!("Upload Error: {}", _e);
 
-                    return;
+                    break 'request;
                 }
             }
         }
