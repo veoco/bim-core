@@ -14,11 +14,8 @@ use crate::utils::SpeedTestResult;
 
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use std::time::SystemTime;
 
-pub struct HTTPClient {
-    download_url: Url,
-    upload_url: Url,
+pub struct SpeedtestNetTcpClient {
     multi_thread: bool,
 
     address: SocketAddr,
@@ -31,27 +28,18 @@ pub struct HTTPClient {
     jitter: f64,
 }
 
-impl HTTPClient {
-    pub fn build(
-        download_url: String,
-        upload_url: String,
-        ipv6: bool,
-        multi_thread: bool,
-    ) -> Option<Self> {
-        let download_url = match Url::parse(&download_url) {
-            Ok(u) => u,
-            Err(_) => return None,
-        };
-        let upload_url = match Url::parse(&upload_url) {
+impl SpeedtestNetTcpClient {
+    pub fn build(url: String, ipv6: bool, multi_thread: bool) -> Option<Self> {
+        let url = match Url::parse(&url) {
             Ok(u) => u,
             Err(_) => return None,
         };
 
-        let host = match download_url.host_str() {
+        let host = match url.host_str() {
             Some(h) => h,
             None => return None,
         };
-        let port = match download_url.port_or_known_default() {
+        let port = match url.port_or_known_default() {
             Some(p) => p,
             None => return None,
         };
@@ -79,8 +67,6 @@ impl HTTPClient {
 
         let r = String::from("取消");
         Some(Self {
-            download_url,
-            upload_url,
             multi_thread,
             address,
             upload: 0.0,
@@ -93,10 +79,6 @@ impl HTTPClient {
     }
 
     fn run_load(&mut self, load: u8) -> Result<bool, Box<dyn Error>> {
-        let url = match load {
-            0 => self.upload_url.clone(),
-            _ => self.download_url.clone(),
-        };
         let threads = if self.multi_thread { 8 } else { 1 };
         let mut counters = vec![];
 
@@ -106,7 +88,6 @@ impl HTTPClient {
 
         for _ in 0..threads {
             let a = self.address.clone();
-            let u = url.clone();
             let ct = Arc::new(RwLock::new(0u128));
             counters.push(ct.clone());
 
@@ -116,8 +97,8 @@ impl HTTPClient {
 
             thread::spawn(move || {
                 let _ = match load {
-                    0 => request_http_upload(a, u, ct, s, f, e),
-                    _ => request_http_download(a, u, ct, s, f, e),
+                    0 => request_tcp_upload(a, ct, s, f, e),
+                    _ => request_tcp_download(a, ct, s, f, e),
                 };
             });
             thread::sleep(Duration::from_millis(250));
@@ -198,7 +179,7 @@ impl HTTPClient {
     }
 }
 
-impl Client for HTTPClient {
+impl Client for SpeedtestNetTcpClient {
     fn ping(&mut self) -> bool {
         let mut count = 0;
         let mut pings = [0u128; 6];
@@ -282,26 +263,17 @@ fn request_tcp_ping(address: &SocketAddr) -> u128 {
     }
 }
 
-fn request_http_download(
+fn request_tcp_download(
     address: SocketAddr,
-    url: Url,
     counter: Arc<RwLock<u128>>,
     start: Arc<Barrier>,
     stop: Arc<RwLock<bool>>,
     end: Arc<Barrier>,
 ) {
-    let chunk_count = 50;
-    let data_size = chunk_count * 1024 * 1024 as u128;
-    let mut data_counter;
+    let data_size = 15 * 1024 * 1024 * 1024 as u128;
     let mut buffer = [0; 65536];
 
-    let host_port = format!(
-        "{}:{}",
-        url.host_str().unwrap(),
-        url.port_or_known_default().unwrap()
-    );
-    let path_str = url.path();
-
+    let url = Url::parse("http://bench.im").unwrap();
     let mut stream = match make_connection(&address, &url) {
         Ok(s) => s,
         Err(_) => {
@@ -312,92 +284,72 @@ fn request_http_download(
     };
 
     start.wait();
-    'request: while !*(stop.read().unwrap()) {
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_millis();
-        let path_query = format!(
-            "{}?cors=true&r={}&ckSize={}&size={}",
-            path_str, now, chunk_count, data_size
-        );
 
-        #[cfg(debug_assertions)]
-        debug!("Download {path_query}");
+    #[cfg(debug_assertions)]
+    debug!("Download Start");
 
-        let request_head = format!(
-            "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: bim/1.0\r\n\r\n",
-            path_query, host_port,
-        )
-        .into_bytes();
+    let request = format!("DOWNLOAD {data_size}\n").into_bytes();
+    match stream.write_all(&request) {
+        Ok(_) => {
+            if let Ok(size) = stream.read(&mut buffer) {
+                #[cfg(debug_assertions)]
+                debug!("Download Status: {size}");
 
-        match stream.write_all(&request_head) {
-            Ok(_) => {
-                if let Ok(size) = stream.read(&mut buffer) {
+                if size == 0 {
                     #[cfg(debug_assertions)]
-                    debug!("Download Status: {size}");
+                    debug!("Download Error: Start failed");
 
-                    if size > 0 {
-                        data_counter = size as u128;
-
-                        let mut ct = counter.write().unwrap();
-                        *ct += size as u128;
-                    } else {
-                        break 'request;
-                    }
-                } else {
-                    break 'request;
+                    end.wait();
+                    return;
                 }
+
+                let mut ct = counter.write().unwrap();
+                *ct += size as u128;
+            } else {
+                end.wait();
+                return;
+            }
+        }
+        Err(_e) => {
+            #[cfg(debug_assertions)]
+            debug!("Download Error: {}", _e);
+
+            end.wait();
+            return;
+        }
+    }
+
+    while !*(stop.read().unwrap()) {
+        match stream.read(&mut buffer) {
+            Ok(size) => {
+                let mut ct = counter.write().unwrap();
+                *ct += size as u128;
             }
             Err(_e) => {
                 #[cfg(debug_assertions)]
                 debug!("Download Error: {}", _e);
 
-                break 'request;
-            }
-        }
-
-        while data_counter < data_size {
-            match stream.read(&mut buffer) {
-                Ok(size) => {
-                    data_counter += size as u128;
-
-                    let mut ct = counter.write().unwrap();
-                    *ct += size as u128;
-                }
-                Err(_e) => {
-                    #[cfg(debug_assertions)]
-                    debug!("Download Error: {}", _e);
-
-                    break 'request;
-                }
+                end.wait();
+                return;
             }
         }
     }
     end.wait();
 }
 
-fn request_http_upload(
+fn request_tcp_upload(
     address: SocketAddr,
-    url: Url,
     counter: Arc<RwLock<u128>>,
     start: Arc<Barrier>,
     stop: Arc<RwLock<bool>>,
     end: Arc<Barrier>,
 ) {
-    let chunk_count = 50;
-    let data_size = chunk_count * 1024 * 1024 as u128;
-    let mut data_counter;
-
-    let host_port = format!(
-        "{}:{}",
-        url.host_str().unwrap(),
-        url.port_or_known_default().unwrap()
-    );
-    let url_path = url.path();
+    let data_size = 15 * 1024 * 1024 * 1024 as u128;
     let request_chunk = "0123456789AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz-="
         .repeat(1024)
         .into_bytes();
+
+    let url = Url::parse("http://bench.im").unwrap();
 
     let mut stream = match make_connection(&address, &url) {
         Ok(s) => s,
@@ -409,52 +361,36 @@ fn request_http_upload(
     };
 
     start.wait();
-    'request: while !*(stop.read().unwrap()) {
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_millis();
-        let path_query = format!("{}?r={}", url_path, now);
+    #[cfg(debug_assertions)]
+    debug!("Upload Start");
 
-        #[cfg(debug_assertions)]
-        debug!("Upload {path_query} size {data_size}");
+    let request = format!("UPLOAD {data_size} 0\n").into_bytes();
+    match stream.write_all(&request) {
+        Ok(_) => {
+            let mut ct = counter.write().unwrap();
+            *ct += request.len() as u128;
+        }
+        Err(_e) => {
+            #[cfg(debug_assertions)]
+            debug!("Upload Error: {}", _e);
 
-        let request_head = format!(
-            "POST {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: bim/1.0\r\nContent-Length: {}\r\n\r\n",
-            path_query, host_port, data_size
-        )
-        .into_bytes();
+            end.wait();
+            return;
+        }
+    }
 
-        match stream.write_all(&request_head) {
-            Ok(_) => {
-                let length = request_head.len() as u128;
-                data_counter = length;
-
+    while !*(stop.read().unwrap()) {
+        match stream.write(&request_chunk) {
+            Ok(size) => {
                 let mut ct = counter.write().unwrap();
-                *ct += length;
+                *ct += size as u128;
             }
             Err(_e) => {
                 #[cfg(debug_assertions)]
                 debug!("Upload Error: {}", _e);
 
-                break 'request;
-            }
-        }
-
-        while data_counter < data_size {
-            match stream.write(&request_chunk) {
-                Ok(size) => {
-                    data_counter += size as u128;
-
-                    let mut ct = counter.write().unwrap();
-                    *ct += size as u128;
-                }
-                Err(_e) => {
-                    #[cfg(debug_assertions)]
-                    debug!("Upload Error: {}", _e);
-
-                    return;
-                }
+                end.wait();
+                return;
             }
         }
     }

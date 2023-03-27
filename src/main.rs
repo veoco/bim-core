@@ -1,28 +1,30 @@
 use getopts::Options;
 use std::env;
 
-use bimc::clients::{Client, HTTPClient};
-use bimc::utils::{justify_name, SpeedTestResult};
+use bimc::clients::{Client, HTTPClient, SpeedtestNetTcpClient};
+use bimc::utils::justify_name;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} DOWNLOAD_URL UPLOAD_URL [options]", program);
     print!("{}", opts.usage(&brief));
 }
 
-fn run(
+fn get_client(
+    client_name: &str,
     download_url: String,
     upload_url: String,
     ipv6: bool,
     multi_thread: bool,
-) -> SpeedTestResult {
-    let client = HTTPClient::build(download_url, upload_url, ipv6, multi_thread);
-
-    if let Some(mut c) = client {
-        let _ = c.run();
-        return c.result();
+) -> Option<Box<dyn Client>> {
+    match client_name {
+        "http" => Some(Box::new(
+            HTTPClient::build(download_url, upload_url, ipv6, multi_thread).unwrap(),
+        )),
+        "tcp" => Some(Box::new(
+            SpeedtestNetTcpClient::build(upload_url, ipv6, multi_thread).unwrap(),
+        )),
+        _ => None,
     }
-
-    SpeedTestResult::build(0.0, "失败".to_string(), 0.0, "失败".to_string(), 0.0, 0.0)
 }
 
 fn main() {
@@ -30,6 +32,7 @@ fn main() {
     let program = args[0].clone();
 
     let mut opts = Options::new();
+    opts.optopt("c", "client", "set test client", "NAME");
     opts.optflag("6", "ipv6", "enable ipv6");
     opts.optflag("m", "multi", "enable multi thread");
     opts.optflag("n", "name", "print justified name");
@@ -77,7 +80,12 @@ fn main() {
     #[cfg(debug_assertions)]
     env_logger::init();
 
-    let r = run(download_url, upload_url, ipv6, multi);
-
-    println!("{}", r.text());
+    let client_name = matches.opt_str("c").unwrap_or("http".to_string());
+    if let Some(mut client) = get_client(&client_name, download_url, upload_url, ipv6, multi) {
+        let _ = (*client).run();
+        let r = client.result();
+        println!("{}", r.text());
+    } else {
+        println!("{client_name} client not found or invalid params.")
+    }
 }

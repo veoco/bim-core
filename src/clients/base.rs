@@ -65,15 +65,6 @@ pub fn make_connection(
 }
 
 pub trait Client {
-    type ReadyClient;
-
-    fn build(
-        download_url: String,
-        upload_url: String,
-        ipv6: bool,
-        multi_thread: bool,
-    ) -> Option<Self::ReadyClient>;
-
     fn result(&self) -> SpeedTestResult;
 
     fn ping(&mut self) -> bool;
