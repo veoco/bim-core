@@ -357,7 +357,7 @@ fn request_http_download(
             }
         }
 
-        while data_counter < data_size {
+        while data_counter < data_size && !*(stop.read().unwrap()) {
             match stream.read(&mut buffer) {
                 Ok(size) => {
                     data_counter += size as u128;
@@ -441,7 +441,7 @@ fn request_http_upload(
             }
         }
 
-        while data_counter < data_size {
+        while data_counter < data_size && !*(stop.read().unwrap()) {
             match stream.write(&request_chunk) {
                 Ok(size) => {
                     data_counter += size as u128;
