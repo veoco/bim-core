@@ -75,6 +75,7 @@ pub fn justify_name(name: &str, length: u8, left_right: bool) -> String {
     justified_name
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct SpeedTestResult {
     upload: f64,
     upload_status: String,
