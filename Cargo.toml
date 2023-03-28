@@ -2,6 +2,8 @@
 name = "bim-core"
 version = "0.15.0"
 edition = "2021"
+description = "Client core for bench.im."
+license = "GPL-2.0-only"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
