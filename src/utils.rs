@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 const WIDTH: [(u32, u8); 38] = [
     (126, 1),
     (159, 0),
