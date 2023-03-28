@@ -121,8 +121,8 @@ jobs:
         run: |
           cargo build -r
           mkdir -p ./build/release
-          cp ./target/release/bim-macos ./build/release/bim-macos
-          cp ./target/release/bimc-macos ./build/release/bimc-macos
+          cp ./target/release/bim ./build/release/bim-macos
+          cp ./target/release/bimc ./build/release/bimc-macos
           cd ./build/release
           shasum -a 256 bim-macos > bim-macos.sha256
           shasum -a 256 bimc-macos > bimc-macos.sha256
