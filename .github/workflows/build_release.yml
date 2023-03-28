@@ -40,6 +40,7 @@ jobs:
           export RUSTFLAGS="-C link-arg=-lgcc -Clink-arg=-static-libgcc"
           cross build --target ${{ matrix.target }} -r -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort
           cp ./target/${{ matrix.target }}/release/bimc ./build/release/bimc-${{ matrix.target }}
+          cp ./target/${{ matrix.target }}/release/bim ./build/release/bim-${{ matrix.target }}
       
       - name: UPX
         uses: crazy-max/ghaction-upx@v2
@@ -53,6 +54,7 @@ jobs:
         run: |
           cd ./build/release
           shasum -a 256 bimc-${{ matrix.target }} > bimc-${{ matrix.target }}.sha256
+          shasum -a 256 bim-${{ matrix.target }} > bim-${{ matrix.target }}.sha256
 
       - name: Upload Github Assets
         uses: softprops/action-gh-release@v1

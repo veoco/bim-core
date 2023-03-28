@@ -1,8 +1,8 @@
 use getopts::Options;
 use std::env;
 
-use bimc::clients::{Client, HTTPClient, SpeedtestNetTcpClient};
-use bimc::utils::justify_name;
+use bim_core::clients::{Client, HTTPClient, SpeedtestNetTcpClient};
+use bim_core::utils::justify_name;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} DOWNLOAD_URL UPLOAD_URL [options]", program);
