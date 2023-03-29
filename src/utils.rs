@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 const WIDTH: [(u32, u8); 38] = [
@@ -127,5 +129,20 @@ impl SpeedTestResult {
         let jitter = justify_name(&format!("{:.1}", &self.jitter), 7, false);
 
         format!("{upload},{upload_status},{download},{download_status},{latency},{jitter}")
+    }
+}
+
+impl fmt::Display for SpeedTestResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Upload {:.1}Mbps {}, Download: {:.1}Mbps {}, Latency {:.1}, Jitter {:.1}",
+            self.upload,
+            self.upload_status,
+            self.download,
+            self.download_status,
+            self.latency,
+            self.jitter
+        )
     }
 }
