@@ -79,12 +79,24 @@ pub fn justify_name(name: &str, length: u8, left_right: bool) -> String {
 
 #[derive(Serialize, Deserialize)]
 pub struct SpeedTestResult {
+    #[serde(serialize_with = "serialize_f64")]
     upload: f64,
     upload_status: String,
+    #[serde(serialize_with = "serialize_f64")]
     download: f64,
     download_status: String,
+    #[serde(serialize_with = "serialize_f64")]
     latency: f64,
+    #[serde(serialize_with = "serialize_f64")]
     jitter: f64,
+}
+
+fn serialize_f64<S>(x: &f64, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let s = format!("{:.1}", x);
+    serializer.serialize_str(&s)
 }
 
 impl SpeedTestResult {
