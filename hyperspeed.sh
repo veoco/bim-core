@@ -26,7 +26,7 @@ print_info() {
     echo "——————————————————————————— HyperSpeed —————————————————————————————"
     echo "         bash <(wget -qO- https://bench.im/hyperspeed)"
     echo "         项目修改自: https://github.com/zq/superspeed/"
-    echo "    节点更新: 2023/3/5 | 组件更新: 2023/3/27 | 组件版本: 0.14.2"
+    echo "   脚本更新: 2023/4/13 | 组件更新: 2023/3/27 | 组件版本: 0.14.2"
     echo "————————————————————————————————————————————————————————————————————"
 }
 
@@ -70,8 +70,13 @@ speed_test(){
     local downloadStatus="$(echo "$output" | cut -n -d ',' -f4)"
     local latency="$(echo "$output" | cut -n -d ',' -f5)"
     local jitter="$(echo "$output" | cut -n -d ',' -f6)"
-            
-    printf "${YELLOW}${nodeISP}|${GREEN}${name}${CYAN}↑${upload}${YELLOW}${uploadStatus}${CYAN} ↓${download}${YELLOW}${downloadStatus}${CYAN} ↕ ${GREEN}${latency}${CYAN} ϟ ${GREEN}${jitter}${ENDC}\n"
+
+    result="${YELLOW}${nodeISP}|${GREEN}${name}${CYAN}↑${upload}${YELLOW}${uploadStatus}${CYAN} ↓${download}${YELLOW}${downloadStatus}${CYAN} ↕ ${GREEN}${latency}${CYAN} ϟ ${GREEN}${jitter}${ENDC}"
+    if [ $uploadStatus = "正常" ] && [ $downloadStatus = "正常" ]; then
+        printf "$result\n"
+    else
+        failed+=("$result")
+    fi 
 }
 
 run_test() {
@@ -80,7 +85,8 @@ run_test() {
     echo "————————————————————————————————————————————————————————————————————"
     echo "测速服务器信息   ↑     上传/Mbps ↓     下载/Mbps ↕ 延迟/ms ϟ 抖动/ms"
     echo "————————————————————————————————————————————————————————————————————"
-    start=$(date +%s) 
+    start=$(date +%s)
+    failed=( )
 
     if [[ ${selection} == 1 ]] || [[ ${selection} == 3 ]]; then
         speed_test '上海' '电信' '' 'aHR0cDovL3NwZWVkdGVzdDEub25saW5lLnNoLmNuOjgwODAvZG93bmxvYWQK' 'aHR0cDovL3NwZWVkdGVzdDEub25saW5lLnNoLmNuOjgwODAvdXBsb2FkCg=='
@@ -137,6 +143,15 @@ run_test() {
     fi
 
     end=$(date +%s)
+
+    if [ ${#failed[@]} -ne 0 ]; then
+        echo "--------------------------------------------------------------------"
+        for value in "${failed[@]}"
+        do
+            printf "$value\n"
+        done
+    fi
+    
     echo "————————————————————————————————————————————————————————————————————"
 
     if [[ "$thread" == "" ]]; then
