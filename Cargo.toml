@@ -1,6 +1,6 @@
 [package]
 name = "bim-core"
-version = "0.15.4"
+version = "0.16.0"
 edition = "2021"
 description = "Client core for bench.im."
 license = "GPL-2.0-only"
