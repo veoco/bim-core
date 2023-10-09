@@ -1,6 +1,9 @@
 use std::error::Error;
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::sync::{Arc, Barrier, RwLock};
+use std::sync::{
+    atomic::{AtomicU64, AtomicU8, Ordering},
+    Arc,
+};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -9,7 +12,9 @@ use log::debug;
 
 use url::Url;
 
-use crate::clients::base::{make_connection, Client};
+use crate::clients::base::{
+    check_running, make_connection, wait_ready, wait_stop, wait_sync, Client,
+};
 use crate::utils::SpeedTestResult;
 
 use std::io::{Read, Write};
@@ -98,98 +103,77 @@ impl HTTPClient {
             _ => self.download_url.clone(),
         };
         let threads = if self.multi_thread { 8 } else { 1 };
-        let mut counters = vec![];
-
-        let start = Arc::new(Barrier::new(threads + 1));
-        let stop = Arc::new(RwLock::new(false));
-        let end = Arc::new(Barrier::new(threads + 1));
+        let counter = Arc::new(AtomicU64::new(0));
+        let flag = Arc::new(AtomicU8::new(threads));
 
         for _ in 0..threads {
             let a = self.address.clone();
             let u = url.clone();
-            let ct = Arc::new(RwLock::new(0u128));
-            counters.push(ct.clone());
-
-            let s = start.clone();
-            let f = stop.clone();
-            let e = end.clone();
+            let c = counter.clone();
+            let f = flag.clone();
 
             thread::spawn(move || {
                 let _ = match load {
-                    0 => request_http_upload(a, u, ct, s, f, e),
-                    _ => request_http_download(a, u, ct, s, f, e),
+                    0 => request_http_upload(a, u, c, f),
+                    _ => request_http_download(a, u, c, f),
                 };
             });
             thread::sleep(Duration::from_millis(250));
         }
 
-        let mut last = 0;
-        let mut last_time = 0;
         let mut time_passed = 0;
-        let mut results = [0.0; 28];
+        let mut results = [(0, 0); 28];
         let mut index = 0;
-        let mut wait = 6;
 
-        start.wait();
+        wait_sync(&flag);
+
         let now = Instant::now();
         while time_passed < 14_000_000 {
             thread::sleep(Duration::from_millis(500));
             time_passed = now.elapsed().as_micros();
-            let time_used = time_passed - last_time;
 
-            let current = {
-                let mut count = 0;
-                for ct in counters.iter() {
-                    let num = ct.read().unwrap();
-                    count += *num
-                }
-                count
-            };
-
-            if last == current {
-                wait -= 1;
-            }
-            let speed = ((current - last) * 8) as f64 / time_used as f64;
-
-            #[cfg(debug_assertions)]
-            debug!("Transfered {current} bytes in {time_passed} us, speed {speed}");
-
-            results[index] = speed;
+            results[index] = (counter.load(Ordering::Relaxed), time_passed);
             index += 1;
-            last = current;
-            last_time = time_passed;
         }
 
-        {
-            let mut f = stop.write().unwrap();
-            *f = true;
-        }
-        end.wait();
+        flag.store(threads, Ordering::SeqCst);
+        wait_sync(&flag);
 
-        let mut all = 0.0;
-        for i in index - 20..index {
-            all += results[i];
-        }
-        let final_speed = all / 20.0;
+        #[cfg(debug_assertions)]
+        debug!("Results {results:?}");
 
-        let status = if wait <= 0 {
-            if last < 200 {
-                "失败"
+        let speed = {
+            let (c18, t18) = results[17];
+            let (c28, t28) = results[index - 1];
+
+            ((c28 - c18) * 8) as f64 / (t28 - t18) as f64
+        };
+
+        let status = {
+            let mut stop = 0;
+            let mut last = 0;
+            for (num, _) in results {
+                if num == last {
+                    stop += 1;
+                }
+                last = num;
+            }
+
+            if stop < 6 {
+                "正常"
             } else {
                 "断流"
             }
-        } else {
-            "正常"
         }
         .to_string();
 
         match load {
             0 => {
-                self.upload = final_speed;
+                self.upload = speed;
                 self.upload_status = status;
             }
             _ => {
-                self.download = final_speed;
+                self.download = speed;
                 self.download_status = status;
             }
         }
@@ -285,13 +269,11 @@ fn request_tcp_ping(address: &SocketAddr) -> u128 {
 fn request_http_download(
     address: SocketAddr,
     url: Url,
-    counter: Arc<RwLock<u128>>,
-    start: Arc<Barrier>,
-    stop: Arc<RwLock<bool>>,
-    end: Arc<Barrier>,
+    counter: Arc<AtomicU64>,
+    flag: Arc<AtomicU8>,
 ) {
     let chunk_count = 50;
-    let data_size = chunk_count * 1024 * 1024 as u128;
+    let data_size = chunk_count * 1024 * 1024 as u64;
     let mut data_counter;
     let mut buffer = [0; 65536];
 
@@ -305,14 +287,17 @@ fn request_http_download(
     let mut stream = match make_connection(&address, &url) {
         Ok(s) => s,
         Err(_) => {
-            start.wait();
-            end.wait();
+            wait_ready(&flag);
+            wait_stop(&flag);
             return;
         }
     };
 
-    start.wait();
-    'request: while !*(stop.read().unwrap()) {
+    let rand_time = flag.load(Ordering::Relaxed) * 30;
+    wait_ready(&flag);
+    thread::sleep(Duration::from_millis(rand_time as u64));
+
+    'request: while check_running(&flag) {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -338,10 +323,9 @@ fn request_http_download(
                     debug!("Download Status: {size}");
 
                     if size > 0 {
-                        data_counter = size as u128;
-
-                        let mut ct = counter.write().unwrap();
-                        *ct += size as u128;
+                        let count = size as u64;
+                        data_counter = count;
+                        counter.fetch_add(count, Ordering::Relaxed);
                     } else {
                         break 'request;
                     }
@@ -357,13 +341,12 @@ fn request_http_download(
             }
         }
 
-        while data_counter < data_size && !*(stop.read().unwrap()) {
+        while data_counter < data_size && check_running(&flag) {
             match stream.read(&mut buffer) {
                 Ok(size) => {
-                    data_counter += size as u128;
-
-                    let mut ct = counter.write().unwrap();
-                    *ct += size as u128;
+                    let count = size as u64;
+                    data_counter += count;
+                    counter.fetch_add(count, Ordering::Relaxed);
                 }
                 Err(_e) => {
                     #[cfg(debug_assertions)]
@@ -374,19 +357,17 @@ fn request_http_download(
             }
         }
     }
-    end.wait();
+    wait_stop(&flag);
 }
 
 fn request_http_upload(
     address: SocketAddr,
     url: Url,
-    counter: Arc<RwLock<u128>>,
-    start: Arc<Barrier>,
-    stop: Arc<RwLock<bool>>,
-    end: Arc<Barrier>,
+    counter: Arc<AtomicU64>,
+    flag: Arc<AtomicU8>,
 ) {
     let chunk_count = 50;
-    let data_size = chunk_count * 1024 * 1024 as u128;
+    let data_size = chunk_count * 1024 * 1024 as u64;
     let mut data_counter;
 
     let host_port = format!(
@@ -402,14 +383,17 @@ fn request_http_upload(
     let mut stream = match make_connection(&address, &url) {
         Ok(s) => s,
         Err(_) => {
-            start.wait();
-            end.wait();
+            wait_ready(&flag);
+            wait_stop(&flag);
             return;
         }
     };
 
-    start.wait();
-    'request: while !*(stop.read().unwrap()) {
+    let rand_time = flag.load(Ordering::Relaxed) * 30;
+    wait_ready(&flag);
+    thread::sleep(Duration::from_millis(rand_time as u64));
+    
+    'request: while check_running(&flag) {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -427,11 +411,9 @@ fn request_http_upload(
 
         match stream.write_all(&request_head) {
             Ok(_) => {
-                let length = request_head.len() as u128;
+                let length = request_head.len() as u64;
                 data_counter = length;
-
-                let mut ct = counter.write().unwrap();
-                *ct += length;
+                counter.fetch_add(length, Ordering::SeqCst);
             }
             Err(_e) => {
                 #[cfg(debug_assertions)]
@@ -441,13 +423,12 @@ fn request_http_upload(
             }
         }
 
-        while data_counter < data_size && !*(stop.read().unwrap()) {
+        while data_counter < data_size && check_running(&flag) {
             match stream.write(&request_chunk) {
                 Ok(size) => {
-                    data_counter += size as u128;
-
-                    let mut ct = counter.write().unwrap();
-                    *ct += size as u128;
+                    let count = size as u64;
+                    data_counter += size as u64;
+                    counter.fetch_add(count, Ordering::Relaxed);
                 }
                 Err(_e) => {
                     #[cfg(debug_assertions)]
@@ -458,5 +439,5 @@ fn request_http_upload(
             }
         }
     }
-    end.wait();
+    wait_stop(&flag);
 }

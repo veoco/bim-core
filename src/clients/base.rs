@@ -1,6 +1,10 @@
+use std::hint::spin_loop;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicU8, Ordering},
+    Arc,
+};
 use std::thread;
 use std::time::Duration;
 
@@ -16,10 +20,7 @@ pub trait GenericStream: Read + Write {}
 
 impl<T: Read + Write> GenericStream for T {}
 
-pub fn make_connection(
-    address: &SocketAddr,
-    url: &Url,
-) -> Result<Box<dyn GenericStream>, String> {
+pub fn make_connection(address: &SocketAddr, url: &Url) -> Result<Box<dyn GenericStream>, String> {
     let ssl = if url.scheme() == "https" { true } else { false };
     let mut retry = 3;
 
@@ -62,6 +63,30 @@ pub fn make_connection(
         retry -= 1;
     }
     return Err(String::from("连接失败"));
+}
+
+pub fn wait_ready(flag: &Arc<AtomicU8>) {
+    flag.fetch_sub(1, Ordering::SeqCst);
+    while flag.load(Ordering::SeqCst) > 0 {
+        spin_loop();
+    }
+}
+
+pub fn check_running(flag: &Arc<AtomicU8>) -> bool {
+    flag.load(Ordering::SeqCst) == 0
+}
+
+pub fn wait_sync(flag: &Arc<AtomicU8>) {
+    while flag.load(Ordering::SeqCst) > 0 {
+        spin_loop();
+    }
+}
+
+pub fn wait_stop(flag: &Arc<AtomicU8>) {
+    while flag.load(Ordering::SeqCst) == 0 {
+        spin_loop();
+    }
+    flag.fetch_sub(1, Ordering::SeqCst);
 }
 
 pub trait Client {
