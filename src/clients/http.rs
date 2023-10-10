@@ -43,46 +43,23 @@ impl HTTPClient {
         ipv6: bool,
         multi_thread: bool,
     ) -> Option<Self> {
-        let download_url = match Url::parse(&download_url) {
-            Ok(u) => u,
-            Err(_) => return None,
-        };
-        let upload_url = match Url::parse(&upload_url) {
-            Ok(u) => u,
-            Err(_) => return None,
-        };
+        let download_url = Url::parse(&download_url).ok()?;
+        let upload_url = Url::parse(&upload_url).ok()?;
 
-        let host = match download_url.host_str() {
-            Some(h) => h,
-            None => return None,
-        };
-        let port = match download_url.port_or_known_default() {
-            Some(p) => p,
-            None => return None,
-        };
+        let host = download_url.host_str()?.to_owned();
+        let port = download_url.port_or_known_default().to_owned()?;
 
         let host_port = format!("{host}:{port}");
-        let addresses = match host_port.to_socket_addrs() {
-            Ok(addrs) => addrs,
-            Err(_) => return None,
-        };
+        let addresses = host_port.to_socket_addrs().ok()?;
 
-        let mut address = None;
-        for addr in addresses {
-            if (addr.is_ipv6() && ipv6) || (addr.is_ipv4() && !ipv6) {
-                address = Some(addr);
-            }
-        }
-
-        let address = match address {
-            Some(addr) => addr,
-            None => return None,
-        };
+        let address = addresses
+            .into_iter()
+            .find(|addr| (addr.is_ipv6() && ipv6) || (addr.is_ipv4() && !ipv6))?;
 
         #[cfg(debug_assertions)]
         debug!("IP address {address}");
 
-        let r = String::from("取消");
+        let r = "取消".to_owned();
         Some(Self {
             download_url,
             upload_url,
@@ -392,7 +369,7 @@ fn request_http_upload(
     let rand_time = flag.load(Ordering::Relaxed) * 30;
     wait_ready(&flag);
     thread::sleep(Duration::from_millis(rand_time as u64));
-    
+
     'request: while check_running(&flag) {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)

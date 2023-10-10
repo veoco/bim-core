@@ -35,42 +35,22 @@ pub struct SpeedtestNetTcpClient {
 
 impl SpeedtestNetTcpClient {
     pub fn build(url: String, ipv6: bool, multi_thread: bool) -> Option<Self> {
-        let url = match Url::parse(&url) {
-            Ok(u) => u,
-            Err(_) => return None,
-        };
+        let url = Url::parse(&url).ok()?;
 
-        let host = match url.host_str() {
-            Some(h) => h,
-            None => return None,
-        };
-        let port = match url.port_or_known_default() {
-            Some(p) => p,
-            None => return None,
-        };
+        let host = url.host_str()?.to_owned();
+        let port = url.port_or_known_default().to_owned()?;
 
         let host_port = format!("{host}:{port}");
-        let addresses = match host_port.to_socket_addrs() {
-            Ok(addrs) => addrs,
-            Err(_) => return None,
-        };
+        let addresses = host_port.to_socket_addrs().ok()?;
 
-        let mut address = None;
-        for addr in addresses {
-            if (addr.is_ipv6() && ipv6) || (addr.is_ipv4() && !ipv6) {
-                address = Some(addr);
-            }
-        }
-
-        let address = match address {
-            Some(addr) => addr,
-            None => return None,
-        };
+        let address = addresses
+            .into_iter()
+            .find(|addr| (addr.is_ipv6() && ipv6) || (addr.is_ipv4() && !ipv6))?;
 
         #[cfg(debug_assertions)]
         debug!("IP address {address}");
 
-        let r = String::from("取消");
+        let r = "取消".to_owned();
         Some(Self {
             multi_thread,
             address,
