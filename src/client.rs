@@ -2,7 +2,7 @@ use getopts::Options;
 use std::env;
 
 use bim_core::clients::{Client, HTTPClient, SpeedtestNetTcpClient};
-use bim_core::utils::justify_name;
+use bim_core::utils::{justify_name, SpeedTestResult};
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} DOWNLOAD_URL UPLOAD_URL [options]", program);
@@ -17,12 +17,8 @@ fn get_client(
     multi_thread: bool,
 ) -> Option<Box<dyn Client>> {
     match client_name {
-        "http" => Some(Box::new(
-            HTTPClient::build(download_url, upload_url, ipv6, multi_thread).unwrap(),
-        )),
-        "tcp" => Some(Box::new(
-            SpeedtestNetTcpClient::build(upload_url, ipv6, multi_thread).unwrap(),
-        )),
+        "http" => HTTPClient::build(download_url, upload_url, ipv6, multi_thread),
+        "tcp" => SpeedtestNetTcpClient::build(upload_url, ipv6, multi_thread),
         _ => None,
     }
 }
@@ -81,11 +77,14 @@ fn main() {
     env_logger::init();
 
     let client_name = matches.opt_str("c").unwrap_or("http".to_string());
-    if let Some(mut client) = get_client(&client_name, download_url, upload_url, ipv6, multi) {
-        let _ = (*client).run();
-        let r = client.result();
-        println!("{}", r.text());
-    } else {
-        println!("{client_name} client not found or invalid params.")
-    }
+    let r = {
+        if let Some(mut client) = get_client(&client_name, download_url, upload_url, ipv6, multi) {
+            let _ = (*client).run();
+            client.result()
+        } else {
+            SpeedTestResult::build(0.0, "失败".to_string(), 0.0, "失败".to_string(), 0.0, 0.0)
+        }
+    };
+
+    println!("{}", r.text());
 }

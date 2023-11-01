@@ -28,7 +28,7 @@ pub struct SpeedtestNetTcpClient {
 }
 
 impl SpeedtestNetTcpClient {
-    pub fn build(url: String, ipv6: bool, multi_thread: bool) -> Option<Self> {
+    pub fn build(url: String, ipv6: bool, multi_thread: bool) -> Option<Box<dyn Client>> {
         let url = Url::parse(&url).ok()?;
 
         let address = get_address(&url, ipv6)?;
@@ -37,7 +37,7 @@ impl SpeedtestNetTcpClient {
         debug!("IP address {address}");
 
         let r = "取消".to_owned();
-        Some(Self {
+        Some(Box::new(Self {
             multi_thread,
             address,
             upload: 0.0,
@@ -46,7 +46,7 @@ impl SpeedtestNetTcpClient {
             download_status: r.clone(),
             latency: 0.0,
             jitter: 0.0,
-        })
+        }))
     }
 
     fn run_load(&mut self, load: u8) -> Result<bool, Box<dyn Error>> {

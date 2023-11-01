@@ -36,7 +36,7 @@ impl HTTPClient {
         upload_url: String,
         ipv6: bool,
         multi_thread: bool,
-    ) -> Option<Self> {
+    ) -> Option<Box<dyn Client>> {
         let download_url = Url::parse(&download_url).ok()?;
         let upload_url = Url::parse(&upload_url).ok()?;
 
@@ -46,7 +46,7 @@ impl HTTPClient {
         debug!("IP address {address}");
 
         let r = "取消".to_owned();
-        Some(Self {
+        Some(Box::new(Self {
             download_url,
             upload_url,
             multi_thread,
@@ -57,7 +57,7 @@ impl HTTPClient {
             download_status: r.clone(),
             latency: 0.0,
             jitter: 0.0,
-        })
+        }))
     }
 
     fn run_load(&mut self, load: u8) -> Result<bool, Box<dyn Error>> {
