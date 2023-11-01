@@ -1,9 +1,6 @@
 use std::error::Error;
-use std::net::{SocketAddr, ToSocketAddrs};
-use std::sync::{
-    atomic::{AtomicU64, AtomicU8, Ordering},
-    Arc,
-};
+use std::net::SocketAddr;
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -12,13 +9,10 @@ use log::debug;
 
 use url::Url;
 
-use crate::clients::base::{
-    check_running, make_connection, wait_ready, wait_stop, wait_sync, Client,
-};
+use crate::clients::base::{get_address, make_connection, request_tcp_ping, Client, LoadCounter};
 use crate::utils::SpeedTestResult;
 
 use std::io::{Read, Write};
-use std::net::TcpStream;
 
 pub struct SpeedtestNetTcpClient {
     multi_thread: bool,
@@ -37,15 +31,7 @@ impl SpeedtestNetTcpClient {
     pub fn build(url: String, ipv6: bool, multi_thread: bool) -> Option<Self> {
         let url = Url::parse(&url).ok()?;
 
-        let host = url.host_str()?.to_owned();
-        let port = url.port_or_known_default().to_owned()?;
-
-        let host_port = format!("{host}:{port}");
-        let addresses = host_port.to_socket_addrs().ok()?;
-
-        let address = addresses
-            .into_iter()
-            .find(|addr| (addr.is_ipv6() && ipv6) || (addr.is_ipv4() && !ipv6))?;
+        let address = get_address(&url, ipv6)?;
 
         #[cfg(debug_assertions)]
         debug!("IP address {address}");
@@ -65,77 +51,48 @@ impl SpeedtestNetTcpClient {
 
     fn run_load(&mut self, load: u8) -> Result<bool, Box<dyn Error>> {
         let threads = if self.multi_thread { 8 } else { 1 };
-        let counter = Arc::new(AtomicU64::new(0));
-        let flag = Arc::new(AtomicU8::new(threads));
+        let counter = Arc::new(LoadCounter::new(threads));
+        let mut tasks = vec![];
 
         for _ in 0..threads {
             let a = self.address.clone();
             let c = counter.clone();
-            let f = flag.clone();
 
-            thread::spawn(move || {
-                let _ = match load {
-                    0 => request_tcp_upload(a, c, f),
-                    _ => request_tcp_download(a, c, f),
+            let task = thread::spawn(move || {
+                match load {
+                    0 => request_tcp_upload(a, c),
+                    _ => request_tcp_download(a, c),
                 };
             });
+            tasks.push(task);
             thread::sleep(Duration::from_millis(250));
         }
 
         let mut time_passed = 0;
-        let mut results = [(0, 0); 28];
-        let mut index = 0;
 
-        wait_sync(&flag);
+        counter.wait();
 
         let now = Instant::now();
         while time_passed < 14_000_000 {
             thread::sleep(Duration::from_millis(500));
             time_passed = now.elapsed().as_micros();
 
-            results[index] = (counter.load(Ordering::Relaxed), time_passed);
-            index += 1;
+            counter.count(time_passed);
         }
 
-        flag.store(threads, Ordering::SeqCst);
-        wait_sync(&flag);
-
-        #[cfg(debug_assertions)]
-        debug!("Results {results:?}");
-
-        let speed = {
-            let (c18, t18) = results[17];
-            let (c28, t28) = results[index - 1];
-
-            ((c28 - c18) * 8) as f64 / (t28 - t18) as f64
-        };
-
-        let status = {
-            let mut stop = 0;
-            let mut last = 0;
-            for (num, _) in results {
-                if num == last {
-                    stop += 1;
-                }
-                last = num;
-            }
-
-            if stop < 6 {
-                "正常"
-            } else {
-                "断流"
-            }
+        counter.end();
+        for task in tasks {
+            let _ = task.join();
         }
-        .to_string();
 
         match load {
             0 => {
-                self.upload = speed;
-                self.upload_status = status;
+                self.upload = counter.speed();
+                self.upload_status = counter.status();
             }
             _ => {
-                self.download = speed;
-                self.download_status = status;
+                self.download = counter.speed();
+                self.download_status = counter.status();
             }
         }
 
@@ -212,22 +169,7 @@ impl Client for SpeedtestNetTcpClient {
     }
 }
 
-fn request_tcp_ping(address: &SocketAddr) -> u128 {
-    let now = Instant::now();
-    let r = TcpStream::connect_timeout(&address, Duration::from_micros(1_000_000));
-    let used = now.elapsed().as_micros();
-    match r {
-        Ok(_) => used,
-        Err(_e) => {
-            #[cfg(debug_assertions)]
-            debug!("Ping {_e}");
-
-            0
-        }
-    }
-}
-
-fn request_tcp_download(address: SocketAddr, counter: Arc<AtomicU64>, flag: Arc<AtomicU8>) {
+fn request_tcp_download(address: SocketAddr, counter: Arc<LoadCounter>) {
     let data_size = 15 * 1024 * 1024 * 1024 as u128;
     let mut buffer = [0; 65536];
 
@@ -235,15 +177,12 @@ fn request_tcp_download(address: SocketAddr, counter: Arc<AtomicU64>, flag: Arc<
     let mut stream = match make_connection(&address, &url) {
         Ok(s) => s,
         Err(_) => {
-            wait_ready(&flag);
-            wait_stop(&flag);
+            counter.wait();
             return;
         }
     };
 
-    let rand_time = flag.load(Ordering::Relaxed) * 30;
-    wait_ready(&flag);
-    thread::sleep(Duration::from_millis(rand_time as u64));
+    counter.wait();
 
     #[cfg(debug_assertions)]
     debug!("Download Start");
@@ -258,46 +197,38 @@ fn request_tcp_download(address: SocketAddr, counter: Arc<AtomicU64>, flag: Arc<
                 if size == 0 {
                     #[cfg(debug_assertions)]
                     debug!("Download Error: Start failed");
-
-                    wait_stop(&flag);
                     return;
                 }
 
                 let count = size as u64;
-                counter.fetch_add(count, Ordering::Relaxed);
+                counter.increase(count);
             } else {
-                wait_stop(&flag);
                 return;
             }
         }
         Err(_e) => {
             #[cfg(debug_assertions)]
             debug!("Download Error: {}", _e);
-
-            wait_stop(&flag);
             return;
         }
     }
 
-    while check_running(&flag) {
+    while !counter.is_end() {
         match stream.read(&mut buffer) {
             Ok(size) => {
                 let count = size as u64;
-                counter.fetch_add(count, Ordering::Relaxed);
+                counter.increase(count);
             }
             Err(_e) => {
                 #[cfg(debug_assertions)]
                 debug!("Download Error: {}", _e);
-
-                wait_stop(&flag);
                 return;
             }
         }
     }
-    wait_stop(&flag);
 }
 
-fn request_tcp_upload(address: SocketAddr, counter: Arc<AtomicU64>, flag: Arc<AtomicU8>) {
+fn request_tcp_upload(address: SocketAddr, counter: Arc<LoadCounter>) {
     let data_size = 15 * 1024 * 1024 * 1024 as u128;
     let request_chunk = "0123456789AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz-="
         .repeat(1024)
@@ -308,15 +239,12 @@ fn request_tcp_upload(address: SocketAddr, counter: Arc<AtomicU64>, flag: Arc<At
     let mut stream = match make_connection(&address, &url) {
         Ok(s) => s,
         Err(_) => {
-            wait_ready(&flag);
-            wait_stop(&flag);
+            counter.wait();
             return;
         }
     };
 
-    let rand_time = flag.load(Ordering::Relaxed) * 30;
-    wait_ready(&flag);
-    thread::sleep(Duration::from_millis(rand_time as u64));
+    counter.wait();
 
     #[cfg(debug_assertions)]
     debug!("Upload Start");
@@ -325,31 +253,26 @@ fn request_tcp_upload(address: SocketAddr, counter: Arc<AtomicU64>, flag: Arc<At
     match stream.write_all(&request) {
         Ok(_) => {
             let count = request.len() as u64;
-            counter.fetch_add(count, Ordering::Relaxed);
+            counter.increase(count);
         }
         Err(_e) => {
             #[cfg(debug_assertions)]
             debug!("Upload Error: {}", _e);
-
-            wait_stop(&flag);
             return;
         }
     }
 
-    while check_running(&flag) {
+    while !counter.is_end() {
         match stream.write(&request_chunk) {
             Ok(size) => {
                 let count = size as u64;
-                counter.fetch_add(count, Ordering::Relaxed);
+                counter.increase(count);
             }
             Err(_e) => {
                 #[cfg(debug_assertions)]
                 debug!("Upload Error: {}", _e);
-
-                wait_stop(&flag);
                 return;
             }
         }
     }
-    wait_stop(&flag);
 }

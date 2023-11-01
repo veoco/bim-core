@@ -1,12 +1,8 @@
-use std::hint::spin_loop;
 use std::io::{Read, Write};
-use std::net::{SocketAddr, TcpStream};
-use std::sync::{
-    atomic::{AtomicU8, Ordering},
-    Arc,
-};
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
+use std::sync::{Arc, Barrier, RwLock};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[cfg(debug_assertions)]
 use log::debug;
@@ -19,6 +15,18 @@ use crate::utils::SpeedTestResult;
 pub trait GenericStream: Read + Write {}
 
 impl<T: Read + Write> GenericStream for T {}
+
+pub fn get_address(url: &Url, ipv6: bool) -> Option<SocketAddr> {
+    let host = url.host_str()?;
+    let port = url.port_or_known_default()?;
+
+    let host_port = format!("{host}:{port}");
+    let addresses = host_port.to_socket_addrs().ok()?;
+
+    addresses
+        .into_iter()
+        .find(|addr| (addr.is_ipv6() && ipv6) || (addr.is_ipv4() && !ipv6))
+}
 
 pub fn make_connection(address: &SocketAddr, url: &Url) -> Result<Box<dyn GenericStream>, String> {
     let ssl = if url.scheme() == "https" { true } else { false };
@@ -65,28 +73,92 @@ pub fn make_connection(address: &SocketAddr, url: &Url) -> Result<Box<dyn Generi
     return Err(String::from("连接失败"));
 }
 
-pub fn wait_ready(flag: &Arc<AtomicU8>) {
-    flag.fetch_sub(1, Ordering::SeqCst);
-    while flag.load(Ordering::SeqCst) > 0 {
-        spin_loop();
+pub fn request_tcp_ping(address: &SocketAddr) -> u128 {
+    let now = Instant::now();
+    let r = TcpStream::connect_timeout(&address, Duration::from_micros(1_000_000));
+    let used = now.elapsed().as_micros();
+    match r {
+        Ok(_) => used,
+        Err(_e) => {
+            #[cfg(debug_assertions)]
+            debug!("Ping {_e}");
+
+            0
+        }
     }
 }
 
-pub fn check_running(flag: &Arc<AtomicU8>) -> bool {
-    flag.load(Ordering::SeqCst) == 0
+pub struct LoadCounter {
+    counter: RwLock<u64>,
+    stater: Barrier,
+    ender: RwLock<bool>,
+    results: RwLock<Vec<(u64, u128)>>,
 }
 
-pub fn wait_sync(flag: &Arc<AtomicU8>) {
-    while flag.load(Ordering::SeqCst) > 0 {
-        spin_loop();
+impl LoadCounter {
+    pub fn new(threads: u8) -> Self {
+        Self {
+            counter: RwLock::new(0),
+            stater: Barrier::new((threads + 1) as usize),
+            ender: RwLock::new(false),
+            results: RwLock::new(vec![]),
+        }
     }
-}
 
-pub fn wait_stop(flag: &Arc<AtomicU8>) {
-    while flag.load(Ordering::SeqCst) == 0 {
-        spin_loop();
+    pub fn wait(&self) {
+        self.stater.wait();
     }
-    flag.fetch_sub(1, Ordering::SeqCst);
+
+    pub fn end(&self) {
+        let mut e = self.ender.write().unwrap();
+        *e = true;
+    }
+
+    pub fn is_end(&self) -> bool {
+        let e = self.ender.read().unwrap();
+        *e
+    }
+
+    pub fn increase(&self, count: u64) {
+        let mut c = self.counter.write().unwrap();
+        *c += count;
+    }
+
+    pub fn count(&self, time_passed: u128) {
+        let c = { *self.counter.read().unwrap() };
+
+        let mut results = self.results.write().unwrap();
+        results.push((c, time_passed));
+    }
+
+    pub fn speed(&self) -> f64 {
+        let (c18, t18) = self.results.read().unwrap()[17];
+        let (c28, t28) = self.results.read().unwrap()[27];
+
+        ((c28 - c18) * 8) as f64 / (t28 - t18) as f64
+    }
+
+    pub fn status(&self) -> String {
+        let mut stop = 0;
+        let mut last = 0;
+        let results = self.results.read().unwrap().to_vec();
+
+        #[cfg(debug_assertions)]
+        debug!("Results {results:?}");
+
+        for (num, _) in results {
+            if num == last {
+                stop += 1;
+            }
+            last = num;
+        }
+
+        if stop < 6 {
+            String::from("正常")
+        } else {
+            String::from("断流")
+        }
+    }
 }
 
 pub trait Client {
