@@ -18,7 +18,7 @@ use std::time::SystemTime;
 pub struct HTTPClient {
     download_url: Url,
     upload_url: Url,
-    multi_thread: bool,
+    threads: u8,
 
     address: SocketAddr,
 
@@ -35,7 +35,7 @@ impl HTTPClient {
         download_url: String,
         upload_url: String,
         ipv6: bool,
-        multi_thread: bool,
+        threads: u8,
     ) -> Option<Box<dyn Client>> {
         let download_url = Url::parse(&download_url).ok()?;
         let upload_url = Url::parse(&upload_url).ok()?;
@@ -49,7 +49,7 @@ impl HTTPClient {
         Some(Box::new(Self {
             download_url,
             upload_url,
-            multi_thread,
+            threads,
             address,
             upload: 0.0,
             upload_status: r.clone(),
@@ -65,11 +65,10 @@ impl HTTPClient {
             0 => self.upload_url.clone(),
             _ => self.download_url.clone(),
         };
-        let threads = if self.multi_thread { 8 } else { 1 };
-        let counter = Arc::new(LoadCounter::new(threads));
+        let counter = Arc::new(LoadCounter::new(self.threads));
         let mut tasks = vec![];
 
-        for _ in 0..threads {
+        for _ in 0..self.threads {
             let a = self.address.clone();
             let u = url.clone();
             let c = counter.clone();

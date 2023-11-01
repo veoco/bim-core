@@ -15,7 +15,7 @@ use crate::utils::SpeedTestResult;
 use std::io::{Read, Write};
 
 pub struct SpeedtestNetTcpClient {
-    multi_thread: bool,
+    threads: u8,
 
     address: SocketAddr,
 
@@ -28,7 +28,7 @@ pub struct SpeedtestNetTcpClient {
 }
 
 impl SpeedtestNetTcpClient {
-    pub fn build(url: String, ipv6: bool, multi_thread: bool) -> Option<Box<dyn Client>> {
+    pub fn build(url: String, ipv6: bool, threads: u8) -> Option<Box<dyn Client>> {
         let url = Url::parse(&url).ok()?;
 
         let address = get_address(&url, ipv6)?;
@@ -38,7 +38,7 @@ impl SpeedtestNetTcpClient {
 
         let r = "取消".to_owned();
         Some(Box::new(Self {
-            multi_thread,
+            threads,
             address,
             upload: 0.0,
             upload_status: r.clone(),
@@ -50,11 +50,10 @@ impl SpeedtestNetTcpClient {
     }
 
     fn run_load(&mut self, load: u8) -> Result<bool, Box<dyn Error>> {
-        let threads = if self.multi_thread { 8 } else { 1 };
-        let counter = Arc::new(LoadCounter::new(threads));
+        let counter = Arc::new(LoadCounter::new(self.threads));
         let mut tasks = vec![];
 
-        for _ in 0..threads {
+        for _ in 0..self.threads {
             let a = self.address.clone();
             let c = counter.clone();
 

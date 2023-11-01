@@ -14,11 +14,11 @@ fn get_client(
     download_url: String,
     upload_url: String,
     ipv6: bool,
-    multi_thread: bool,
+    threads: u8,
 ) -> Option<Box<dyn Client>> {
     match client_name {
-        "http" => HTTPClient::build(download_url, upload_url, ipv6, multi_thread),
-        "tcp" => SpeedtestNetTcpClient::build(upload_url, ipv6, multi_thread),
+        "http" => HTTPClient::build(download_url, upload_url, ipv6, threads),
+        "tcp" => SpeedtestNetTcpClient::build(upload_url, ipv6, threads),
         _ => None,
     }
 }
@@ -29,8 +29,8 @@ fn main() {
 
     let mut opts = Options::new();
     opts.optopt("c", "client", "set test client", "NAME");
+    opts.optflagopt("m", "multi", "enable multi threads", "NUM");
     opts.optflag("6", "ipv6", "enable ipv6");
-    opts.optflag("m", "multi", "enable multi thread");
     opts.optflag("n", "name", "print justified name");
     opts.optflag("h", "help", "print this help menu");
     let matches = match opts.parse(&args[1..]) {
@@ -71,14 +71,31 @@ fn main() {
     let download_url = dl.unwrap().clone();
     let upload_url = ul.unwrap().clone();
     let ipv6 = matches.opt_present("6");
-    let multi = matches.opt_present("m");
+
+    let theads = {
+        if matches.opt_present("m") {
+            if let Some(value) = matches.opt_str("m") {
+                match value.parse() {
+                    Ok(m) => m,
+                    Err(_) => {
+                        print_usage(&program, opts);
+                        return;
+                    }
+                }
+            } else {
+                8
+            }
+        } else {
+            1
+        }
+    };
 
     #[cfg(debug_assertions)]
     env_logger::init();
 
     let client_name = matches.opt_str("c").unwrap_or("http".to_string());
     let r = {
-        if let Some(mut client) = get_client(&client_name, download_url, upload_url, ipv6, multi) {
+        if let Some(mut client) = get_client(&client_name, download_url, upload_url, ipv6, theads) {
             let _ = (*client).run();
             client.result()
         } else {
