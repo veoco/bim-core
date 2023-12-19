@@ -47,11 +47,12 @@ fn main() {
         return;
     }
 
-    let (dl, ul) = if !matches.free.is_empty() {
-        (matches.free.get(0), matches.free.get(1))
-    } else {
-        print_usage(&program, opts);
-        return;
+    let (dl, ul) = match matches.free.as_slice() {
+        [first, second, ..] => (Some(first), Some(second)),
+        _ => {
+            print_usage(&program, opts);
+            return;
+        }
     };
 
     if matches.opt_present("n") {
@@ -72,35 +73,21 @@ fn main() {
     let upload_url = ul.unwrap().clone();
     let ipv6 = matches.opt_present("6");
 
-    let theads = {
-        if matches.opt_present("m") {
-            if let Some(value) = matches.opt_str("m") {
-                match value.parse() {
-                    Ok(m) => m,
-                    Err(_) => {
-                        print_usage(&program, opts);
-                        return;
-                    }
-                }
-            } else {
-                8
-            }
-        } else {
-            1
-        }
-    };
+    let theads = matches
+        .opt_str("m")
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(1);
 
     #[cfg(debug_assertions)]
     env_logger::init();
 
     let client_name = matches.opt_str("c").unwrap_or("http".to_string());
-    let r = {
-        if let Some(mut client) = get_client(&client_name, download_url, upload_url, ipv6, theads) {
+    let r = match get_client(&client_name, download_url, upload_url, ipv6, theads) {
+        Some(mut client) => {
             let _ = (*client).run();
             client.result()
-        } else {
-            SpeedTestResult::build(0.0, "失败".to_string(), 0.0, "失败".to_string(), 0.0, 0.0)
         }
+        None => SpeedTestResult::build(0.0, "失败".to_string(), 0.0, "失败".to_string(), 0.0, 0.0),
     };
 
     println!("{}", r.text());

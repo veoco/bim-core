@@ -32,8 +32,27 @@ pub fn make_connection(address: &SocketAddr, url: &Url) -> Result<Box<dyn Generi
     let ssl = if url.scheme() == "https" { true } else { false };
     let mut retry = 3;
 
+    let mut root_store = RootCertStore::empty();
+    root_store.add_server_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.0.iter().map(
+        |ta| {
+            OwnedTrustAnchor::from_subject_spki_name_constraints(
+                ta.subject,
+                ta.spki,
+                ta.name_constraints,
+            )
+        },
+    ));
+
+    let config = rustls::ClientConfig::builder()
+        .with_safe_defaults()
+        .with_root_certificates(root_store)
+        .with_no_client_auth();
+
+    let server_name = url.host_str().unwrap().try_into().unwrap();
+    let conn = rustls::ClientConnection::new(Arc::new(config), server_name).unwrap();
+
     while retry > 0 {
-        if let Ok(stream) = TcpStream::connect_timeout(&address, Duration::from_micros(3_000_000)) {
+        if let Ok(stream) = TcpStream::connect_timeout(&address, Duration::from_micros(1_000_000)) {
             #[cfg(debug_assertions)]
             debug!("TCP connected");
 
@@ -43,23 +62,6 @@ pub fn make_connection(address: &SocketAddr, url: &Url) -> Result<Box<dyn Generi
                 return Ok(Box::new(stream));
             }
 
-            let mut root_store = RootCertStore::empty();
-            root_store.add_server_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.0.iter().map(
-                |ta| {
-                    OwnedTrustAnchor::from_subject_spki_name_constraints(
-                        ta.subject,
-                        ta.spki,
-                        ta.name_constraints,
-                    )
-                },
-            ));
-            let config = rustls::ClientConfig::builder()
-                .with_safe_defaults()
-                .with_root_certificates(root_store)
-                .with_no_client_auth();
-
-            let server_name = url.host_str().unwrap().try_into().unwrap();
-            let conn = rustls::ClientConnection::new(Arc::new(config), server_name).unwrap();
             let tls = rustls::StreamOwned::new(conn, stream);
 
             #[cfg(debug_assertions)]
@@ -70,7 +72,8 @@ pub fn make_connection(address: &SocketAddr, url: &Url) -> Result<Box<dyn Generi
 
         retry -= 1;
     }
-    return Err(String::from("连接失败"));
+    
+    Err(String::from("连接失败"))
 }
 
 pub fn request_tcp_ping(address: &SocketAddr) -> u128 {
